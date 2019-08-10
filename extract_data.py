@@ -76,10 +76,11 @@ def parse_sections(text: str, report: str):
 
 if __name__ == '__main__':
     dfs = []
+    reportdir = thisdir.joinpath('reports')
     for report_name in report_sections.keys():
-        if not thisdir.joinpath(report_name).is_dir():
+        if not reportdir.joinpath(report_name).is_dir():
             continue
-        for report in thisdir.joinpath(report_name).glob('*'):
+        for report in reportdir.joinpath(report_name).glob('*'):
             day, month, year = report.stem[:2], report.stem[2:4], report.stem[4:]
             date = datetime(day=int(day), month=int(month), year=int(year))
 

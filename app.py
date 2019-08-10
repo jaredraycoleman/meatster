@@ -5,6 +5,8 @@ import dash_core_components as dcc
 import dash_html_components as html 
 
 import pathlib
+import itertools
+import numpy as np
 
 from functools import lru_cache
 import pandas as pd
@@ -37,6 +39,26 @@ def get_names(report: str, cut_type: str):
 def get_data(report: str, cut_type: str, name: str):
     df = get_all_data()
     return df[(df['report'] == report) & (df['type'] == cut_type) & (df['name'] == name)]
+
+column_map = {
+    'weighted': 'price_avg',
+    'low': 'price_min',
+    'high': 'price_max',
+    'pounds': 'total_pounds',
+    'trades': 'num_trades'
+}
+@lru_cache(maxsize=32)
+def get_data_summary(report: str, cut_type: str, name: str,
+                     start_date, end_date) -> pd.DataFrame:
+    df = get_data(report, cut_type, name)[start_date:end_date]
+
+    summary = pd.DataFrame.from_dict({
+        key: [df[name].mean(), df[name].median(), df[name].mode()]
+        for key, name in column_map.items()
+    })
+    summary.index = ['Mean', 'Median', 'Mode']
+
+    return df, summary
 
 def to_options(elems):
     return [{'label': elem, 'value': elem} for elem in elems]
@@ -81,12 +103,19 @@ init_names = get_names(init_reports[0], init_types[0])
 
 inputs = {
     'Report': dcc.Dropdown(options=to_options(init_reports), 
-                           value=init_reports[0], id=f'dropdown-report'),
+                           value=init_reports[0], 
+                           id=f'dropdown-report',
+                           clearable=False,
+    ),
     'Type': dcc.Dropdown(options=to_options(init_types), 
-                         value=init_types[0], id=f'dropdown-type'),
+                         value=init_types[0], id=f'dropdown-type',
+                         clearable=False,
+    ),
     'Name': dcc.Dropdown(options=to_options(init_names), 
-                         value=init_names[0], id=f'dropdown-name'),
-    'Dates': dcc.DatePickerSingle(id='date-picker'),
+                         value=init_names[0], id=f'dropdown-name',
+                         clearable=False,
+    ),
+    'Date': dcc.DatePickerSingle(id='date-picker'),
 }
 
 input_form = [
@@ -97,32 +126,84 @@ input_form = [
     for label, form in inputs.items()
 ] 
 
+def to_cap(text: str) -> str:
+    if not text:
+        return text 
+    return text[0].upper() + text[1:]
 
-params = ['trades', 'pounds', 'low', 'high', 'weighted']
-param_blocks = [
-    dbc.Col(
-        html.A(dbc.Card(
-            [
-                dbc.CardHeader(html.H5(param, className='text-center')),
-                dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col(html.Div(price_up, id=f'movement-{param}'), width=4),
-                        dbc.Col(html.P('current', id=f'current-{param}'))
-                    ], className='align-items-center') 
-                ]),
-                dbc.CardFooter('average', id=f'average-{param}')
-            ],
-            id=f'card-{param}'
-        ), n_clicks=0, id=f'link-{param}')
-    ) for param in params
-]
+# params = ['trades', 'pounds', 'low', 'high', 'weighted']
+# param_blocks = [
+#     dbc.Col(
+#         html.A(dbc.Card(
+#             [
+#                 dbc.CardHeader(html.H5(param, className='text-center')),
+#                 dbc.CardBody([
+#                     dbc.Row([
+#                         dbc.Col(html.Div(price_up, id=f'movement-{param}'), width=4),
+#                         dbc.Col(html.P('current', id=f'current-{param}'))
+#                     ], className='align-items-center') 
+#                 ]),
+#                 dbc.CardFooter('average', id=f'average-{param}')
+#             ],
+#             id=f'card-{param}'
+#         ), n_clicks=0, id=f'link-{param}')
+#     ) for param in params
+# ]
+
+# param_blocks_header = [
+#     html.Thead(
+#         html.Tr([
+#             html.Th(to_cap(param))
+#             for param in params 
+#         ])
+#     )
+# ]
+
+# param_blocks_body = [
+
+# ]
+
+# param_blocks = dbc.Table(
+#     [*param_blocks_header, ]
+# )
+
+
+info_table_header = html.Thead(
+    html.Tr([html.Th('')] + [html.Th(to_cap(col), id=f'info-title-{col}', n_clicks_timestamp=0, style={'cursor': 'pointer'}) for col in column_map.keys()])
+)
+
+rows = ['mean', 'median', 'mode']
+
+info_table_body = html.Tbody(
+    [
+        html.Tr([
+            html.Td(to_cap(row)),
+            *[
+                html.Td(id=f'info-{row}-{col}', n_clicks_timestamp=0, style={'cursor': 'pointer'})
+                for col in column_map.keys()
+            ]
+        ])
+        for row in rows
+    ]
+)
+
+info_title_ids = [f'info-title-{col}' for col in column_map.keys()]
+info_table_ids = info_title_ids + [f'info-{row}-{col}' for row, col in itertools.product(rows, column_map.keys())]
+
+info_table = dbc.Table(
+    [info_table_header, info_table_body],
+    id='info-table',
+    striped=True, 
+    bordered=True, 
+    # hover=True
+)
 
 info_panel = dbc.Col([
     dbc.Row([
         html.H5('Date Range'),
         dcc.DatePickerRange(id='date-range', className='ml-3'),
     ], className='mb-4 align-items-center'),
-    dbc.Row(param_blocks),
+    dbc.Row(info_table),
 ])
 
 body = dbc.Container([dbc.Row([
@@ -149,56 +230,60 @@ hidden_params = html.Div(
 app.layout = html.Div([navbar, body, hidden_params])
 server = app.server 
 
+# @app.callback(
+#     [
+#         *(Output(f'card-{param}', 'outline') for param in params),
+#         *(Output(f'card-{param}', 'color') for param in params)
+#     ],
+#     [Input(f'link-{param}', 'n_clicks') for param in params]
+# )
+# def param_select(*clicks):
+
+#     selected_params = [n_clicked % 2 != 0 for param, n_clicked in zip(params, clicks)]
+#     colors = ['dark' if selected else None for selected in selected_params]
+
+#     return selected_params + colors
+
 @app.callback(
-    [
-        *(Output(f'card-{param}', 'outline') for param in params),
-        *(Output(f'card-{param}', 'color') for param in params)
-    ],
-    [Input(f'link-{param}', 'n_clicks') for param in params]
-)
-def param_select(*clicks):
-
-    selected_params = [n_clicked % 2 != 0 for param, n_clicked in zip(params, clicks)]
-    colors = ['dark' if selected else None for selected in selected_params]
-
-    return selected_params + colors
-
-@app.callback(
-    Output('plot', 'figure'),
-    [Input(f'card-{param}', 'outline') for param in params] +
+    [Output('plot', 'figure')] + [Output(info_title_id, 'style') for info_title_id in info_title_ids],
+    [Input(info_table_id, 'n_clicks_timestamp') for info_table_id in info_table_ids] +
     [Input('dropdown-report', 'value'),
      Input('dropdown-type', 'value'),
      Input('dropdown-name', 'value'),
      Input('date-range', 'start_date'),
-     Input('date-range', 'end_date')]
+     Input('date-range', 'end_date')],
+    [State(info_title_id, 'style') for info_title_id in info_title_ids]
 )
 def plot_callback(*args):
-    selected_params = args[:len(params)]
-    selected = [param for param, selected in zip(params, selected_params) if selected]
+    timestamps = args[:len(info_table_ids)]
+    _, row, col = info_table_ids[np.argmax(timestamps)].split('-')
 
-    report, cut_type, name, start, end = args[len(params):]
-    df = get_data(report, cut_type, name)
+    report, cut_type, name, start, end, *styles = args[len(info_table_ids):]
 
-    df = df.set_index('date')[start:end]
+    for style, info_table_id in zip(styles, info_table_ids):
+        if info_table_id.split('-')[-1] == col:
+            if 'color' not in style:
+                style['color'] = 'red'
+            else:
+                del style['color']
+               
+    # df = get_data_summary(report, cut_type, name, start_date, end_date)
 
-    column_map = {
-        'weighted': 'price_avg',
-        'low': 'price_min',
-        'high': 'price_max',
-        'pounds': 'total_pounds',
-        'trades': 'num_trades'
-    }
 
-    print(df.columns)
+    # df = get_data(report, cut_type, name)
 
-    data = []
-    for param in selected:
-        data.append({
-            'y': df[column_map[param]].values,
-            'x': df.index.values
-        })
+    # df = df.set_index('date')[start:end]
 
-    return {'data': data}
+    return [{}, *styles]
+
+    # data = []
+    # for param in selected:
+    #     data.append({
+    #         'y': df[column_map[param]].values,
+    #         'x': df.index.values
+    #     })
+
+    # return {'data': data}
 
 @app.callback(
     [Output('dropdown-type', 'options'),
@@ -255,7 +340,7 @@ def default_date_range_callback(name, report, cut_type):
 def update_report_text(report, date):
     date = datetime.strptime(date[:10], '%Y-%m-%d')
     filename = f'{str(date.day).zfill(2)}{str(date.month).zfill(2)}{date.year}.txt'
-    filename = thisdir.joinpath(report, filename)
+    filename = thisdir.joinpath('reports', report, filename)
     if not filename.is_file():
         return f'No report found for {date}'
     with filename.open() as fp:
