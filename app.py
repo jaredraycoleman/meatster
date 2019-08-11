@@ -10,53 +10,89 @@ import numpy as np
 
 from functools import lru_cache
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
+import os
+import requests 
 
 thisdir = pathlib.Path(__file__).resolve().parent
+datapath = thisdir.joinpath('database.pickle')
 
-@lru_cache(maxsize=32)
+cache = (None, None)
 def get_all_data():
-    return pd.read_pickle(str(thisdir.joinpath('database.pickle')))
+    global cache
+    mtime = os.path.getmtime(str(datapath))
+    last_time, res = cache
+    if last_time is not None and res is not None:
+        if mtime <= last_time:
+            return res
 
-@lru_cache(maxsize=32)
+    df = pd.read_pickle(str(thisdir.joinpath('database.pickle')))
+    cache = (mtime, df)
+    return df
+
 def get_reports():
-    reports = get_all_data()['report'].unique()
+    reports = get_all_data()['Report'].unique()
     return reports
 
-@lru_cache(maxsize=32)
 def get_types(report: str):
     df = get_all_data()
-    types = df[df['report'] == report]['type'].unique()
+    types = df[df['Report'] == report]['Cut Type'].unique()
     return types 
 
-@lru_cache(maxsize=32)
 def get_names(report: str, cut_type: str):
     df = get_all_data()
-    names = df[(df['report'] == report) & (df['type'] == cut_type)]['name'].unique()
+    names = df[(df['Report'] == report) & (df['Cut Type'] == cut_type)]['Item Description'].unique()
     return names 
 
-@lru_cache(maxsize=32)
 def get_data(report: str, cut_type: str, name: str):
     df = get_all_data()
-    return df[(df['report'] == report) & (df['type'] == cut_type) & (df['name'] == name)]
+    df = df[(df['Report'] == report) & (df['Cut Type'] == cut_type) & (df['Item Description'] == name)]
+    return df.dropna(how='all')
 
-column_map = {
-    'weighted': 'price_avg',
-    'low': 'price_min',
-    'high': 'price_max',
-    'pounds': 'total_pounds',
-    'trades': 'num_trades'
-}
-@lru_cache(maxsize=32)
+columns = [    
+    'Weighted Average',
+    'Price Range Low',
+    'Price Range High',
+    'Total Pounds',
+    'Number of Trades',
+]
 def get_data_summary(report: str, cut_type: str, name: str,
                      start_date, end_date) -> pd.DataFrame:
-    df = get_data(report, cut_type, name)[start_date:end_date]
+    df = get_data(report, cut_type, name)
+
+    if not start_date:
+        start_date = df['Report Date'].min()
+    if not end_date:
+        end_date = df['Report Date'].max()
+    df = df[(df['Report Date'] >= start_date) & (df['Report Date'] <= end_date)]
+
+    round2 = lambda x: float(f'{x:.2f}')
+    def stats(ser):
+        try:
+            mean = round2(ser.mean())
+        except:
+            mean = None 
+        try:
+            median = round2(ser.median())
+        except:
+            median = None 
+        try:
+            mode = ser.mode()[0]
+        except: 
+            mode = None 
+        try:
+            total = round2(ser.sum())
+        except:
+            total = None
+        
+        return [mean, median, mode, total]
 
     summary = pd.DataFrame.from_dict({
-        key: [df[name].mean(), df[name].median(), df[name].mode()]
-        for key, name in column_map.items()
+        name: stats(df[name])
+        for name in columns
     })
-    summary.index = ['Mean', 'Median', 'Mode']
+
+    summary.index = ['Mean', 'Median', 'Mode (first)', 'Total']
 
     return df, summary
 
@@ -76,7 +112,7 @@ def card_wrap(body, title=None):
     if title is None:
         title = html.Div(style={'display': 'none'})
     elif isinstance(title, str):
-        title = dbc.CardHeader(html.H3(title, className='text-center'))
+        title = dbc.CardHeader(html.H3(title, className='text-left'))
     else:
         title = dbc.CardHeader(title)
 
@@ -84,7 +120,8 @@ def card_wrap(body, title=None):
         [
             title,
             dbc.CardBody(body)
-        ],  className='mb-3'
+        ],  
+        className='mb-3'
     )
 
 navbar = dbc.NavbarSimple(
@@ -115,7 +152,6 @@ inputs = {
                          value=init_names[0], id=f'dropdown-name',
                          clearable=False,
     ),
-    'Date': dcc.DatePickerSingle(id='date-picker'),
 }
 
 input_form = [
@@ -126,164 +162,90 @@ input_form = [
     for label, form in inputs.items()
 ] 
 
-def to_cap(text: str) -> str:
-    if not text:
-        return text 
-    return text[0].upper() + text[1:]
-
-# params = ['trades', 'pounds', 'low', 'high', 'weighted']
-# param_blocks = [
-#     dbc.Col(
-#         html.A(dbc.Card(
-#             [
-#                 dbc.CardHeader(html.H5(param, className='text-center')),
-#                 dbc.CardBody([
-#                     dbc.Row([
-#                         dbc.Col(html.Div(price_up, id=f'movement-{param}'), width=4),
-#                         dbc.Col(html.P('current', id=f'current-{param}'))
-#                     ], className='align-items-center') 
-#                 ]),
-#                 dbc.CardFooter('average', id=f'average-{param}')
-#             ],
-#             id=f'card-{param}'
-#         ), n_clicks=0, id=f'link-{param}')
-#     ) for param in params
-# ]
-
-# param_blocks_header = [
-#     html.Thead(
-#         html.Tr([
-#             html.Th(to_cap(param))
-#             for param in params 
-#         ])
-#     )
-# ]
-
-# param_blocks_body = [
-
-# ]
-
-# param_blocks = dbc.Table(
-#     [*param_blocks_header, ]
-# )
-
-
-info_table_header = html.Thead(
-    html.Tr([html.Th('')] + [html.Th(to_cap(col), id=f'info-title-{col}', n_clicks_timestamp=0, style={'cursor': 'pointer'}) for col in column_map.keys()])
-)
-
-rows = ['mean', 'median', 'mode']
-
-info_table_body = html.Tbody(
+info_panel = dbc.Col(
     [
-        html.Tr([
-            html.Td(to_cap(row)),
-            *[
-                html.Td(id=f'info-{row}-{col}', n_clicks_timestamp=0, style={'cursor': 'pointer'})
-                for col in column_map.keys()
-            ]
-        ])
-        for row in rows
+        dbc.Row([
+            html.H5('Date Range'),
+            dcc.DatePickerRange(id='date-range', className='ml-3'),
+        ], className='mb-4 align-items-center'),
+        dcc.Loading(
+            dbc.Row(html.Div(id='info-table')),
+            type='dot'
+        ),
     ]
 )
-
-info_title_ids = [f'info-title-{col}' for col in column_map.keys()]
-info_table_ids = info_title_ids + [f'info-{row}-{col}' for row, col in itertools.product(rows, column_map.keys())]
-
-info_table = dbc.Table(
-    [info_table_header, info_table_body],
-    id='info-table',
-    striped=True, 
-    bordered=True, 
-    # hover=True
-)
-
-info_panel = dbc.Col([
-    dbc.Row([
-        html.H5('Date Range'),
-        dcc.DatePickerRange(id='date-range', className='ml-3'),
-    ], className='mb-4 align-items-center'),
-    dbc.Row(info_table),
-])
 
 body = dbc.Container([dbc.Row([
     dbc.Col([ # Left Column
         card_wrap(input_form, title='Input'),
-        card_wrap(html.Pre(id='report-text', style={'height': '40vh'}), title='Report'),
-    ], width=5),
-    dbc.Col([ # Right Column
         card_wrap(
-            dbc.Col([
-                info_panel,
-                dcc.Graph(id='plot')
+            html.Pre(id='report-text', style={'height': '40vh'}), 
+            title=dbc.Row([
+                dbc.Col(html.H3('Report', className='text-left'), className='align-self-center'),
+                dbc.Col(dcc.DatePickerSingle(id='date-picker', className='text-right float-right')),
             ])
-        )
-    ])
+        ),
+    ], width=5),
+    dbc.Col(
+        [ # Right Column
+            card_wrap(
+                dbc.Col(
+                    [
+                        info_panel, 
+                        dcc.Loading(dcc.Graph(id='plot'), type='dot')
+                    ],
+                    className='overflow-hidden'
+                )
+            )
+        ]
+    )
 ])], className='mt-4', fluid=True)
 
-hidden_params = html.Div(
-    [
-    ],
-    style={'display': 'none'}
-)
-
-app.layout = html.Div([navbar, body, hidden_params])
+app.layout = html.Div([navbar, body])
 server = app.server 
 
-# @app.callback(
-#     [
-#         *(Output(f'card-{param}', 'outline') for param in params),
-#         *(Output(f'card-{param}', 'color') for param in params)
-#     ],
-#     [Input(f'link-{param}', 'n_clicks') for param in params]
-# )
-# def param_select(*clicks):
-
-#     selected_params = [n_clicked % 2 != 0 for param, n_clicked in zip(params, clicks)]
-#     colors = ['dark' if selected else None for selected in selected_params]
-
-#     return selected_params + colors
+default_cols = {'Price Range Low', 'Price Range High', 'Weighted Average'}
 
 @app.callback(
-    [Output('plot', 'figure')] + [Output(info_title_id, 'style') for info_title_id in info_title_ids],
-    [Input(info_table_id, 'n_clicks_timestamp') for info_table_id in info_table_ids] +
-    [Input('dropdown-report', 'value'),
-     Input('dropdown-type', 'value'),
-     Input('dropdown-name', 'value'),
+    [Output('plot', 'figure'), Output('info-table', 'children')], 
+    [Input('dropdown-name', 'value'),
      Input('date-range', 'start_date'),
      Input('date-range', 'end_date')],
-    [State(info_title_id, 'style') for info_title_id in info_title_ids]
+    [State('dropdown-report', 'value'),
+     State('dropdown-type', 'value'),]
 )
-def plot_callback(*args):
-    timestamps = args[:len(info_table_ids)]
-    _, row, col = info_table_ids[np.argmax(timestamps)].split('-')
-
-    report, cut_type, name, start, end, *styles = args[len(info_table_ids):]
-
-    for style, info_table_id in zip(styles, info_table_ids):
-        if info_table_id.split('-')[-1] == col:
-            if 'color' not in style:
-                style['color'] = 'red'
-            else:
-                del style['color']
+@lru_cache(maxsize=32)
+def plot_callback(name, start_date, end_date, report, cut_type):
+    if start_date:
+        year, month, day = start_date.split('-')
+        start_date = datetime(year=int(year), month=int(month), day=int(day))
+    if end_date:
+        year, month, day = end_date.split('-')
+        end_date = datetime(year=int(year), month=int(month), day=int(day))
                
-    # df = get_data_summary(report, cut_type, name, start_date, end_date)
+    df, summary = get_data_summary(report, cut_type, name, start_date, end_date)
 
+    plots = [
+        dict(
+            x=df['Report Date'],
+            y=df[name],
+            name=name,
+            visible=True if name in default_cols else 'legendonly'
+        )
+        for name in columns
+    ] 
 
-    # df = get_data(report, cut_type, name)
+    summary_table = dbc.Table.from_dataframe(
+        summary,
+        index=True,
+        index_label='',
+        bordered=True,
+        # responsive=True,
+        striped=True,
+        hover=True,
+    )
 
-    # df = df.set_index('date')[start:end]
-
-    return [{}, *styles]
-
-    # data = []
-    # for param in selected:
-    #     data.append({
-    #         'y': df[column_map[param]].values,
-    #         'x': df.index.values
-    #     })
-
-    # return {'data': data}
+    return [{'data': plots}, summary_table]
 
 @app.callback(
     [Output('dropdown-type', 'options'),
@@ -316,7 +278,7 @@ def update_dropdown_name(cut_type, report):
 )
 def default_date_callback(name, report, cut_type):
     df = get_data(report, cut_type, name)
-    last = df['date'].max()
+    last = df['Report Date'].max()
     return last
 
 @app.callback(
@@ -328,24 +290,27 @@ def default_date_callback(name, report, cut_type):
 )
 def default_date_range_callback(name, report, cut_type):
     df = get_data(report, cut_type, name)
-    start = df['date'].min()
-    end = df['date'].max()
+    end = df['Report Date'].max()
+    start = end - timedelta(days=30)
     return start, end
 
+base_url = 'https://search.ams.usda.gov/mndms'
 @app.callback(
     Output('report-text', 'children'),
     [Input('dropdown-report', 'value'),
      Input('date-picker', 'date')]
 )
+@lru_cache(maxsize=32)
 def update_report_text(report, date):
     date = datetime.strptime(date[:10], '%Y-%m-%d')
-    filename = f'{str(date.day).zfill(2)}{str(date.month).zfill(2)}{date.year}.txt'
-    filename = thisdir.joinpath('reports', report, filename)
-    if not filename.is_file():
-        return f'No report found for {date}'
-    with filename.open() as fp:
-        return fp.read()
+    year, month, day = date.year, str(date.month).zfill(2), str(date.day).zfill(2)
+    url = f'{base_url}/{year}/{month}/{report}{year}{month}{day}.TXT'
 
+    res = requests.get(url)
+    if res.status_code == 200:
+        return res.text
+    else:
+        return f'No report found for {date}'
 
 if __name__ == '__main__':
     app.run_server(debug=True)

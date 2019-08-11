@@ -77,23 +77,34 @@ def parse_sections(text: str, report: str):
 if __name__ == '__main__':
     dfs = []
     reportdir = thisdir.joinpath('reports')
-    for report_name in report_sections.keys():
-        if not reportdir.joinpath(report_name).is_dir():
-            continue
-        for report in reportdir.joinpath(report_name).glob('*'):
-            day, month, year = report.stem[:2], report.stem[2:4], report.stem[4:]
+    size = len(list(reportdir.glob('*/*.txt')))
+
+    for i, report in enumerate(reportdir.glob('*/*.txt')):
+        try:
+            print(f'{i}/{size}')
+            report_name = report.parent.name 
+
+            date_str = report.stem[len(report_name):]
+            year, month, day = date_str[:4], date_str[4:6], date_str[6:]
+
             date = datetime(day=int(day), month=int(month), year=int(year))
 
             with report.open() as fp:
-                report_text = fp.read()
+                report_text = '\n'.join([line.rstrip() for line in fp.readlines() if line.strip()])
 
             for section, text in parse_sections(report_text, report_name):
-                df = extract_data(text)
-                df['date'] = date 
-                df['type'] = section
-                df['report'] = report_name
+                try:
+                    df = extract_data(text)
+                    df['date'] = date 
+                    df['type'] = section
+                    df['report'] = report_name
 
-                dfs.append(df)
+                    dfs.append(df)
+                except:
+                    print(f'Error parsing {section} in {report}')
+
+        except:
+            print(f'Error parsing {report}')
 
     df = pd.concat(dfs)
 

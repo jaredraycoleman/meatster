@@ -1,0 +1,13 @@
+tr {
+    table-layout: fixed;
+    width: 100%;
+    text-overflow: ellipsis;
+}
+
+table {
+    width: 100%;
+}
+
+tbody {
+    width: 100%;
+}
