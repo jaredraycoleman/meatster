@@ -2,6 +2,7 @@
 import pathlib 
 import re 
 import pandas as pd
+from datetime import datetime, timedelta
 
 re_report = re.compile(r'.*(LM_XB\d\d\d)[-_]([^_]*).*')
 
@@ -32,7 +33,34 @@ numeric_cols = {
     'Branded Select in Pounds',
 }
 
-def main():
+re_desc = re.compile(r'(?:\d\d\d[A-Z]?)?\s+(?:\d)?\s(?:.+)')
+
+def clean_df(df: pd.DataFrame) -> pd.DataFrame:
+    for col in df.columns:
+        if col in numeric_cols:
+            df[col] = pd.to_numeric(df[col].fillna('').astype(str).str.replace(',', ''))
+        elif col in date_cols:
+            df[col] = pd.to_datetime(df[col], format='%m/%d/%Y')
+        else:
+            df[col] = df[col].astype(str).str.strip()
+    
+    def repl(m):
+        start, imps, fl = m.groups()
+        if imps is None and fl is None:
+            return m.group(0)
+        return start
+
+    re_id = r'(^|\()\s*(\d\d\d[A-Z]?)?\s*(\d)?\s*'
+
+    df['Item Description'] = df['Item Description'].str.replace(re_id, repl)
+    df['Item Description'] = df['Item Description'].str.replace(r'\(\s*?\)', '')
+    df['Item Description'] = df['Item Description'].str.replace(r'\(\s*IM\s*\)', '')
+    df['Item Description'] = df['Item Description'].str.strip()
+    return df
+
+def parse_csvs():    
+    columns = {'Report Date', 'Item Description', 'Number of Trades', 'Total Pounds', 'Price Range Low', 'Price Range High', 'Weighted Average'}
+    dfs = []
     for path in csvdir.glob('*.csv'):
         m = re_report.match(path.stem)
         if not m:
@@ -40,44 +68,20 @@ def main():
             continue 
 
         report, cut_type = m.groups()
-        print(f'{report} {cut_type}')
-
         df = pd.read_csv(str(path))
-
-        for col in df.columns:
-            if col in numeric_cols:
-                df[col] = pd.to_numeric(df[col].fillna('').astype(str).str.replace(',', ''))
-            elif col in date_cols:
-                df[col] = pd.to_datetime(df[col])
-
-        # if 'Item Description' in df.columns:
-        #     df = df.set_index(['Report Date', 'Item Description']).sort_index()
-        # elif 'Primal Description' in df.columns:
-        #     df = df.set_index(['Report Date', 'Primal Description']).sort_index()
-        # else:
-        #     df = df.set_index('Report Date').sort_index()
-
-        df.to_pickle(f'{report}_{cut_type}.pickle')
-
-def group_pickles():
-    columns = {'Report Date', 'Item Description', 'Number of Trades', 'Total Pounds', 'Price Range Low', 'Price Range High', 'Weighted Average'}
-    dfs = []
-    for path in thisdir.joinpath('pickles').glob('*.pickle'):
-        df = pd.read_pickle(str(path))
-
-        report, cut_type = re_report.match(path.stem).groups()
-
         if set(df.columns) != columns:
             continue
-        
+
         print(f'{report}, {cut_type}')
+        
+        df = clean_df(df)
         df['Report'] = report 
         df['Cut Type'] = cut_type 
         dfs.append(df)
-        
-    df = pd.concat(dfs)
+       
+    return pd.concat(dfs)
 
-    df.to_pickle('database.pickle')
-    
 if __name__ == '__main__':
-    group_pickles()
+    df = parse_csvs()
+    df = df[df['Report Date'] <= (datetime.today())]
+    df.to_pickle('database.pickle')

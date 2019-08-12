@@ -179,7 +179,7 @@ body = dbc.Container([dbc.Row([
     dbc.Col([ # Left Column
         card_wrap(input_form, title='Input'),
         card_wrap(
-            html.Pre(id='report-text', style={'height': '40vh'}), 
+            html.Pre(id='report-text', style={'height': '45vh'}), 
             title=dbc.Row([
                 dbc.Col(html.H3('Report', className='text-left'), className='align-self-center'),
                 dbc.Col(dcc.DatePickerSingle(id='date-picker', className='text-right float-right')),
@@ -208,14 +208,14 @@ default_cols = {'Price Range Low', 'Price Range High', 'Weighted Average'}
 
 @app.callback(
     [Output('plot', 'figure'), Output('info-table', 'children')], 
-    [Input('dropdown-name', 'value'),
-     Input('date-range', 'start_date'),
+    [Input('date-range', 'start_date'),
      Input('date-range', 'end_date')],
-    [State('dropdown-report', 'value'),
+    [State('dropdown-name', 'value'),
+     State('dropdown-report', 'value'),
      State('dropdown-type', 'value'),]
 )
 @lru_cache(maxsize=32)
-def plot_callback(name, start_date, end_date, report, cut_type):
+def plot_callback(start_date, end_date, name, report, cut_type):
     if start_date:
         year, month, day = start_date.split('-')
         start_date = datetime(year=int(year), month=int(month), day=int(day))
@@ -302,6 +302,9 @@ base_url = 'https://search.ams.usda.gov/mndms'
 )
 @lru_cache(maxsize=32)
 def update_report_text(report, date):
+    if not date:
+        return ''
+
     date = datetime.strptime(date[:10], '%Y-%m-%d')
     year, month, day = date.year, str(date.month).zfill(2), str(date.day).zfill(2)
     url = f'{base_url}/{year}/{month}/{report}{year}{month}{day}.TXT'
@@ -313,4 +316,4 @@ def update_report_text(report, date):
         return f'No report found for {date}'
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
