@@ -1,3 +1,4 @@
+from typing import Any, Dict
 import dash 
 from dash.dependencies import State, Input, Output
 import dash_bootstrap_components as dbc 
@@ -33,8 +34,23 @@ DEFAULT_COLS = {'price_range_low', 'price_range_high', 'weighted_average'}
 SECTIONS = [
     "Upper 2-3 Choice Items",
     "Lower 1-3 Choice Items",
-    "Branded Select"
+    "Branded Select",
+    "Choice Cuts",
+    "Select Cuts",
+    "Choice/Select Cuts",
+    "Ground Beef",
+    "Blended Ground Beef",
+    "Beef Trimmings"
 ]
+NAME_KEYS = [
+    "item_description",
+    "primal_desc"
+]
+
+def get_name(result: Dict[str, Any]) -> str:
+    for key in NAME_KEYS:
+        if key in result:
+            return result[key]
 
 def get_reports():
     # reports = get_all_data()['Report'].unique()
@@ -55,10 +71,12 @@ def get_names(slug_id: str, section: str, start: str, end: str):
     str_end = end.strftime("%d/%m/%Y")
     res = requests.get(f"{URL}/reports/{slug_id}/{section}?q=published_date={str_start}:{str_end}")
     # print(f"{URL}/reports/{slug_id}/{section}?q=published_date={start}:{end}")
-    names = {
-        result["item_description"]: result["item_description"] 
-        for result in res.json()["results"]
-    }
+    names = {}
+    for result in res.json()["results"]:
+        name = get_name(result)
+        if name is None:
+            continue
+        names[name] = name
     return names 
 
 def get_data(slug_id: str, section: str, name: str, start: datetime, end: datetime):
