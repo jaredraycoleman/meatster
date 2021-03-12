@@ -256,7 +256,8 @@ def cb_plot(report, section, name, start, end): #metric, start, end):
             x=df['report_date'],
             y=df[name],
             name=name,
-            visible=True if name in DEFAULT_COLS else 'legendonly'
+            visible=True if name in DEFAULT_COLS else 'legendonly',
+            connectgaps=True
         )
         for name, dtype in VALUES.items()
         if dtype == numeric
