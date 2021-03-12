@@ -6,6 +6,7 @@ import dash_html_components as html
 
 import pathlib
 import itertools
+from dash_html_components.Label import Label
 import numpy as np
 
 from functools import lru_cache
@@ -126,11 +127,25 @@ price_down = html.I(className='fa fa-chevron-down fa-2x', style={'color': '#d953
 body = dbc.Container(children=[
     dbc.Row([
         dbc.Col([
-            dcc.Dropdown(id="dropdown-report", clearable=False),
-            dcc.Dropdown(id="dropdown-section", clearable=False),
-            dcc.Dropdown(id="dropdown-name", clearable=False),
-            # dcc.Dropdown(id="dropdown-metric", clearable=False),
-            dcc.DatePickerRange(id='date-range', className='ml-3')
+            dbc.Form([
+                dbc.FormGroup([
+                    dbc.Label("Report"), 
+                    dcc.Dropdown(id="dropdown-report", clearable=False)
+                ]),
+                dbc.FormGroup([
+                    dbc.Label("Section"), 
+                    dcc.Dropdown(id="dropdown-section", clearable=False)
+                ]),
+                dbc.FormGroup([
+                    dbc.Label("Cut"), 
+                    dcc.Dropdown(id="dropdown-name", clearable=False)
+                ]),
+                dbc.FormGroup([
+                    dbc.Label("Date Range"), 
+                    dcc.DatePickerRange(id='date-range', className='ml-3')
+                ])
+
+            ])
         ])
     ]),
     dcc.Loading(
