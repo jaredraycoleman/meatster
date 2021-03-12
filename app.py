@@ -18,6 +18,9 @@ from pandas.core.tools.numeric import to_numeric
 import requests 
 from dateutil.parser import parse as dateparse
 
+import requests_cache
+
+requests_cache.install_cache('demo_cache')
 
 numeric = lambda ser: pd.to_numeric(ser.str.replace(',', ''))
 
@@ -201,7 +204,7 @@ def cb_reports(pathname):
               [Input("dropdown-report", "value")])
 def cb_sections(report):
     if not report:
-        return dash.no_update
+        return []
     return to_options(get_sections(report))
 
 @app.callback(Output('dropdown-name', 'options'),
@@ -211,7 +214,7 @@ def cb_sections(report):
                Input('date-range', 'end_date')])
 def cb_names(report, section, start, end):
     if not report or not section or not start or not end:
-        return dash.no_update
+        return []
 
     if start:
         start_date = dateparse(start)
@@ -260,7 +263,7 @@ def cb_name_clear(report):
                Input('date-range', 'end_date')])
 def cb_plot(report, section, name, start, end): #metric, start, end):
     if not report or not section or not name or not start or not end:
-        return dash.no_update, dash.no_update
+        return {'data': []}, None
 
     if start:
         start_date = dateparse(start)
@@ -294,7 +297,7 @@ def cb_plot(report, section, name, start, end): #metric, start, end):
 
 
 def main():
-    app.run_server(debug=False)
+    app.run_server(debug=True)
 
     # df, summary = get_data_summary(
     #     report="2457",
