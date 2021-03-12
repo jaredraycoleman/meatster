@@ -12,59 +12,73 @@ from functools import lru_cache
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+from pandas.core.tools.numeric import to_numeric
 import requests 
+from dateutil.parser import parse as dateparse
 
-thisdir = pathlib.Path(__file__).resolve().parent
-datapath = thisdir.joinpath('database.pickle')
 
-cache = (None, None)
-def get_all_data():
-    global cache
-    mtime = os.path.getmtime(str(datapath))
-    last_time, res = cache
-    if last_time is not None and res is not None:
-        if mtime <= last_time:
-            return res
+numeric = lambda ser: pd.to_numeric(ser.str.replace(',', ''))
 
-    df = pd.read_pickle(str(thisdir.joinpath('database.pickle')))
-    cache = (mtime, df)
-    return df
+URL = "https://mpr.datamart.ams.usda.gov/services/v1.1"
+VALUES = {
+    "report_date": pd.to_datetime,
+    "number_trades": numeric,
+    "total_pounds": numeric,
+    "price_range_low": numeric,
+    "price_range_high": numeric,
+    "weighted_average": numeric
+}
+DEFAULT_COLS = {'Price Range Low', 'Price Range High', 'Weighted Average'}
+SECTIONS = [
+    "Upper 2-3 Choice Items",
+    "Lower 1-3 Choice Items",
+    "Branded Select"
+]
 
 def get_reports():
-    reports = get_all_data()['Report'].unique()
+    # reports = get_all_data()['Report'].unique()
+    res = requests.get(f"{URL}/reports")
+    reports = {
+        report["slug_id"]: report["report_title"] for report in res.json() 
+        if set(SECTIONS).intersection(report["sectionNames"])
+    }
     return reports
 
-def get_types(report: str):
-    df = get_all_data()
-    types = df[df['Report'] == report]['Cut Type'].unique()
-    return types 
+def get_sections(slug_id: str):
+    res = requests.get(f"{URL}/reports/{slug_id}")
+    reports = {section: section for section in set(res.json()["reportSections"]).intersection(SECTIONS)}
+    return reports 
 
-def get_names(report: str, cut_type: str):
-    df = get_all_data()
-    names = df[(df['Report'] == report) & (df['Cut Type'] == cut_type)]['Item Description'].unique()
+def get_names(slug_id: str, section: str, start: str, end: str):
+    str_start = start.strftime("%d/%m/%Y")
+    str_end = end.strftime("%d/%m/%Y")
+    res = requests.get(f"{URL}/reports/{slug_id}/{section}?q=published_date={str_start}:{str_end}")
+    # print(f"{URL}/reports/{slug_id}/{section}?q=published_date={start}:{end}")
+    names = {
+        result["item_description"]: result["item_description"] 
+        for result in res.json()["results"]
+    }
     return names 
 
-def get_data(report: str, cut_type: str, name: str):
-    df = get_all_data()
-    df = df[(df['Report'] == report) & (df['Cut Type'] == cut_type) & (df['Item Description'] == name)]
-    return df.dropna(how='all')
+def get_data(slug_id: str, section: str, name: str, start: datetime, end: datetime):
+    str_start = start.strftime("%d/%m/%Y")
+    str_end = end.strftime("%d/%m/%Y")
+    res = requests.get(f"{URL}/reports/{slug_id}/{section}?q=published_date={str_start}:{str_end}")
+    rows = []
+    for data in res.json()["results"]:
+        if data["item_description"] == name:
+            rows.append([data.get(k) for k in VALUES.keys()])
+    
+    df = pd.DataFrame(rows, columns=list(VALUES.keys()))
+    for col in df.columns:
+        df[col] = VALUES[col](df[col])
+    
+    return df.sort_values(["report_date"])
 
-columns = [    
-    'Weighted Average',
-    'Price Range Low',
-    'Price Range High',
-    'Total Pounds',
-    'Number of Trades',
-]
-def get_data_summary(report: str, cut_type: str, name: str,
-                     start_date, end_date) -> pd.DataFrame:
-    df = get_data(report, cut_type, name)
-
-    if not start_date:
-        start_date = df['Report Date'].min()
-    if not end_date:
-        end_date = df['Report Date'].max()
-    df = df[(df['Report Date'] >= start_date) & (df['Report Date'] <= end_date)]
+def get_data_summary(report: str, section: str, name: str,
+                     start_date: datetime = datetime.today() - timedelta(days=365), 
+                     end_date: datetime = datetime.today()) -> pd.DataFrame:
+    df = get_data(report, section, name, start_date, end_date)
 
     round2 = lambda x: float(f'{x:.2f}')
     def stats(ser):
@@ -89,7 +103,8 @@ def get_data_summary(report: str, cut_type: str, name: str,
 
     summary = pd.DataFrame.from_dict({
         name: stats(df[name])
-        for name in columns
+        for name, _type in VALUES.items()
+        if _type == numeric
     })
 
     summary.index = ['Mean', 'Median', 'Mode (first)', 'Total']
@@ -97,7 +112,7 @@ def get_data_summary(report: str, cut_type: str, name: str,
     return df, summary
 
 def to_options(elems):
-    return [{'label': elem, 'value': elem} for elem in elems]
+    return [{'label': v, 'value': k} for k, v in elems.items()]
 
 app = dash.Dash(__name__, external_stylesheets=[
     dbc.themes.JOURNAL,
@@ -108,21 +123,26 @@ price_up = html.I(className='fa fa-chevron-up fa-2x', style={'color': '#5cb85c'}
 price_down = html.I(className='fa fa-chevron-down fa-2x', style={'color': '#d9534f'})
 
 
-def card_wrap(body, title=None):
-    if title is None:
-        title = html.Div(style={'display': 'none'})
-    elif isinstance(title, str):
-        title = dbc.CardHeader(html.H3(title, className='text-left'))
-    else:
-        title = dbc.CardHeader(title)
-
-    return dbc.Card(
-        [
-            title,
-            dbc.CardBody(body)
-        ],  
-        className='mb-3'
-    )
+body = dbc.Container(children=[
+    dbc.Row([
+        dbc.Col([
+            dcc.Dropdown(id="dropdown-report", clearable=False),
+            dcc.Dropdown(id="dropdown-section", clearable=False),
+            dcc.Dropdown(id="dropdown-name", clearable=False),
+            # dcc.Dropdown(id="dropdown-metric", clearable=False),
+            dcc.DatePickerRange(id='date-range', className='ml-3')
+        ])
+    ]),
+    dcc.Loading(
+        dbc.Row(html.Div(id='info-table')),
+        type='dot'
+    ),
+    dbc.Row([
+        dbc.Col([
+            dcc.Loading(dcc.Graph(id='plot'), type='dot')
+        ])
+    ]),
+])
 
 navbar = dbc.NavbarSimple(
     children=[
@@ -134,105 +154,88 @@ navbar = dbc.NavbarSimple(
     fluid=True,
 )
 
-init_reports = get_reports()
-init_types = get_types(init_reports[0])
-init_names = get_names(init_reports[0], init_types[0])
+app.layout = html.Div([dcc.Location(id='url', refresh=False), navbar, body])
+server = app.server
 
-inputs = {
-    'Report': dcc.Dropdown(options=to_options(init_reports), 
-                           value=init_reports[0], 
-                           id=f'dropdown-report',
-                           clearable=False,
-    ),
-    'Type': dcc.Dropdown(options=to_options(init_types), 
-                         value=init_types[0], id=f'dropdown-type',
-                         clearable=False,
-    ),
-    'Name': dcc.Dropdown(options=to_options(init_names), 
-                         value=init_names[0], id=f'dropdown-name',
-                         clearable=False,
-    ),
-}
+@app.callback([Output('dropdown-report', 'options'), 
+               Output('date-range', 'start_date'), 
+               Output('date-range', 'end_date')],
+              [Input('url', 'pathname')])
+def cb_reports(pathname):
+    return to_options(get_reports()), datetime.today() - timedelta(days=365), datetime.today()
 
-input_form = [
-    dbc.Row([
-        dbc.Col(html.H5(label, className='text-right'), width=2),
-        dbc.Col(form),
-    ], className='mb-2 align-items-center')
-    for label, form in inputs.items()
-] 
+@app.callback([Output('dropdown-section', 'options'),
+               Output('dropdown-section', 'value')],
+              [Input("dropdown-report", "value")])
+def cb_sections(report):
+    if not report:
+        return dash.no_update, dash.no_update
+    return [to_options(get_sections(report)), None]
 
-info_panel = dbc.Col(
-    [
-        dbc.Row([
-            html.H5('Date Range'),
-            dcc.DatePickerRange(id='date-range', className='ml-3'),
-        ], className='mb-4 align-items-center'),
-        dcc.Loading(
-            dbc.Row(html.Div(id='info-table')),
-            type='dot'
-        ),
-    ]
-)
+@app.callback([Output('dropdown-name', 'options'),
+               Output('dropdown-name', 'value')],
+              [Input("dropdown-report", "value"), 
+               Input("dropdown-section", "value"),
+               Input('date-range', 'start_date'),
+               Input('date-range', 'end_date')])
+def cb_names(report, section, start, end):
+    if not report or not section or not start or not end:
+        return dash.no_update, dash.no_update
 
-body = dbc.Container([dbc.Row([
-    dbc.Col([ # Left Column
-        card_wrap(input_form, title='Input'),
-        card_wrap(
-            html.Pre(id='report-text', style={'height': '45vh'}), 
-            title=dbc.Row([
-                dbc.Col(html.H3('Report', className='text-left'), className='align-self-center'),
-                dbc.Col(dcc.DatePickerSingle(id='date-picker', className='text-right float-right')),
-            ])
-        ),
-    ], width=5),
-    dbc.Col(
-        [ # Right Column
-            card_wrap(
-                dbc.Col(
-                    [
-                        info_panel, 
-                        dcc.Loading(dcc.Graph(id='plot'), type='dot')
-                    ],
-                    className='overflow-hidden'
-                )
-            )
-        ]
-    )
-])], className='mt-4', fluid=True)
+    if start:
+        start_date = dateparse(start)
+        # start_date = datetime(year=start_date.year, month=start_date.month, day=start_date.day)
+    if end:
+        end_date = dateparse(end)
+        # end_date = datetime(year=start_date.year, month=start_date.month, day=start_date.day)
 
-app.layout = html.Div([navbar, body])
-server = app.server 
+    return to_options(get_names(report, section, start_date, end_date)), None
 
-default_cols = {'Price Range Low', 'Price Range High', 'Weighted Average'}
+# @app.callback(Output('dropdown-metric', 'options'),
+#              [Input("dropdown-report", "value"), 
+#              Input("dropdown-section", "value"), 
+#              Input("dropdown-name", "value"),
+#              Input('date-range', 'start_date'),
+#              Input('date-range', 'end_date')])
+# def cb_metric(report, section, name, start, end):
+#     if not report or not section or not name or not start or not end:
+#         return dash.no_update
 
-@app.callback(
-    [Output('plot', 'figure'), Output('info-table', 'children')], 
-    [Input('date-range', 'start_date'),
-     Input('date-range', 'end_date')],
-    [State('dropdown-name', 'value'),
-     State('dropdown-report', 'value'),
-     State('dropdown-type', 'value'),]
-)
-@lru_cache(maxsize=32)
-def plot_callback(start_date, end_date, name, report, cut_type):
-    if start_date:
-        year, month, day = start_date.split('-')
-        start_date = datetime(year=int(year), month=int(month), day=int(day))
-    if end_date:
-        year, month, day = end_date.split('-')
-        end_date = datetime(year=int(year), month=int(month), day=int(day))
-               
-    df, summary = get_data_summary(report, cut_type, name, start_date, end_date)
+#     if start:
+#         start_date = dateparse(start)
+#     if end:
+#         end_date = dateparse(end)
+
+#     df = get_data(report, section, name, start_date, end_date)
+#     return to_options({col: col for col, dtype in VALUES.items() if dtype == numeric and col in df.columns})
+
+@app.callback([Output('plot', 'figure'), 
+               Output('info-table', 'children')],
+              [Input("dropdown-report", "value"), 
+               Input("dropdown-section", "value"), 
+               Input("dropdown-name", "value"),
+               Input('date-range', 'start_date'),
+               Input('date-range', 'end_date')])
+def cb_plot(report, section, name, start, end): #metric, start, end):
+    if not report or not section or not name or not start or not end:
+        return dash.no_update
+
+    if start:
+        start_date = dateparse(start)
+    if end:
+        end_date = dateparse(end)
+
+    df, summary = get_data_summary(report, section, name, start_date, end_date)
 
     plots = [
         dict(
-            x=df['Report Date'],
+            x=df['report_date'],
             y=df[name],
             name=name,
-            visible=True if name in default_cols else 'legendonly'
+            visible=True if name in DEFAULT_COLS else 'legendonly'
         )
-        for name in columns
+        for name, dtype in VALUES.items()
+        if dtype == numeric
     ] 
 
     summary_table = dbc.Table.from_dataframe(
@@ -247,73 +250,20 @@ def plot_callback(start_date, end_date, name, report, cut_type):
 
     return [{'data': plots}, summary_table]
 
-@app.callback(
-    [Output('dropdown-type', 'options'),
-     Output('dropdown-type', 'value')],
-    [Input('dropdown-report', 'value')]
-)
-def update_dropdown_type(report):
-    if not report:
-        return []
-    types = get_types(report)
-    return to_options(types), types[0]
 
-@app.callback(
-    [Output('dropdown-name', 'options'),
-     Output('dropdown-name', 'value')],
-    [Input('dropdown-type', 'value')],
-    [State('dropdown-report', 'value')]
-)
-def update_dropdown_name(cut_type, report):
-    if not report or not cut_type:
-        return []
-    names = get_names(report, cut_type)
-    return to_options(names), names[0]
-
-@app.callback(
-    Output('date-picker', 'date'),
-    [Input('dropdown-name', 'value')],
-    [State('dropdown-report', 'value'),
-     State('dropdown-type', 'value')]
-)
-def default_date_callback(name, report, cut_type):
-    df = get_data(report, cut_type, name)
-    last = df['Report Date'].max()
-    return last
-
-@app.callback(
-    [Output('date-range', 'start_date'),
-     Output('date-range', 'end_date')],
-    [Input('dropdown-name', 'value')],
-    [State('dropdown-report', 'value'),
-     State('dropdown-type', 'value')]
-)
-def default_date_range_callback(name, report, cut_type):
-    df = get_data(report, cut_type, name)
-    end = df['Report Date'].max()
-    start = end - timedelta(days=30)
-    return start, end
-
-base_url = 'https://search.ams.usda.gov/mndms'
-@app.callback(
-    Output('report-text', 'children'),
-    [Input('dropdown-report', 'value'),
-     Input('date-picker', 'date')]
-)
-@lru_cache(maxsize=32)
-def update_report_text(report, date):
-    if not date:
-        return ''
-
-    date = datetime.strptime(date[:10], '%Y-%m-%d')
-    year, month, day = date.year, str(date.month).zfill(2), str(date.day).zfill(2)
-    url = f'{base_url}/{year}/{month}/{report}{year}{month}{day}.TXT'
-
-    res = requests.get(url)
-    if res.status_code == 200:
-        return res.text
-    else:
-        return f'No report found for {date}'
-
-if __name__ == '__main__':
+def main():
     app.run_server(debug=False)
+
+    # df, summary = get_data_summary(
+    #     report="2457",
+    #     section="Lower 1-3 Choice Items", 
+    #     name="Rib, ribeye, lip-on, bn-in (109E  1)",
+    #     start_date=datetime(year=2018, month=1, day=1),
+    #     end_date=datetime(year=2021, month=3, day=1)
+    # ) 
+    # print(df)
+    # print(summary)
+
+
+if __name__ == "__main__":
+    main()

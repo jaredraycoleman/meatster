@@ -3,3 +3,7 @@
 **/*.pickle
 reports
 **/csvs
+venv
+*.pyc
+.DS_Store
+.env
