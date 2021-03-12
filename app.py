@@ -5,16 +5,8 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc 
 import dash_html_components as html 
 
-import pathlib
-import itertools
-from dash_html_components.Label import Label
-import numpy as np
-
-from functools import lru_cache
 import pandas as pd
 from datetime import datetime, timedelta
-import os
-from pandas.core.tools.numeric import to_numeric
 import requests 
 from dateutil.parser import parse as dateparse
 
@@ -50,6 +42,13 @@ NAME_KEYS = [
     "primal_desc"
 ]
 
+
+def try_wrap(fun, *args, **kwargs):
+    try:
+        return fun(*args, **kwargs)
+    except:
+        return None 
+        
 def get_name(result: Dict[str, Any]) -> str:
     for key in NAME_KEYS:
         if key in result:
@@ -102,33 +101,25 @@ def get_data_summary(report: str, section: str, name: str,
     df = get_data(report, section, name, start_date, end_date)
 
     round2 = lambda x: float(f'{x:.2f}')
-    def stats(ser):
-        try:
-            mean = round2(ser.mean())
-        except:
-            mean = None 
-        try:
-            median = round2(ser.median())
-        except:
-            median = None 
-        try:
-            mode = ser.mode()[0]
-        except: 
-            mode = None 
-        try:
-            total = round2(ser.sum())
-        except:
-            total = None
-        
-        return [mean, median, mode, total]
 
-    summary = pd.DataFrame.from_dict({
-        name: stats(df[name])
-        for name, _type in VALUES.items()
-        if _type == numeric
-    })
+    fun_map = [
+        ('mean',    lambda ser: round2(ser.mean())),
+        ('median',  lambda ser: round2(ser.median())),
+        ('min',     lambda ser: ser.min()),
+        ('max',     lambda ser: ser.max()),
+        ('total',   lambda ser: round2(ser.sum())),
+        ('mode',    lambda ser: ser.mode()[0]),
+    ]
+    index, funs = zip(*fun_map)
 
-    summary.index = ['Mean', 'Median', 'Mode (first)', 'Total']
+    summary = pd.DataFrame.from_dict(
+        {
+            name: [try_wrap(fun, df[name]) for fun in funs]
+            for name, _type in VALUES.items()
+            if _type == numeric
+        }
+    )
+    summary.index = index
 
     return df, summary
 
@@ -144,40 +135,48 @@ price_up = html.I(className='fa fa-chevron-up fa-2x', style={'color': '#5cb85c'}
 price_down = html.I(className='fa fa-chevron-down fa-2x', style={'color': '#d9534f'})
 
 
-body = dbc.Container(children=[
-    dbc.Row([
-        dbc.Col([
-            dbc.Form([
-                dbc.FormGroup([
-                    dbc.Label("Report"), 
-                    dcc.Dropdown(id="dropdown-report", clearable=False)
-                ]),
-                dbc.FormGroup([
-                    dbc.Label("Section"), 
-                    dcc.Dropdown(id="dropdown-section", clearable=False)
-                ]),
-                dbc.FormGroup([
-                    dbc.Label("Cut"), 
-                    dcc.Dropdown(id="dropdown-name", clearable=False)
-                ]),
-                dbc.FormGroup([
-                    dbc.Label("Date Range"), 
-                    dcc.DatePickerRange(id='date-range', className='ml-3')
-                ])
+body = dbc.Container(
+    children=[
+        dbc.Row(
+            className="mt-2",
+            children=[
+                dbc.Col([
+                    dbc.Form([
+                        dbc.FormGroup([
+                            dbc.Label("Report"), 
+                            dcc.Dropdown(id="dropdown-report", clearable=False)
+                        ]),
+                        dbc.FormGroup([
+                            dbc.Label("Section"), 
+                            dcc.Dropdown(id="dropdown-section", clearable=False)
+                        ]),
+                        dbc.FormGroup([
+                            dbc.Label("Cut"), 
+                            dcc.Dropdown(id="dropdown-name", clearable=False)
+                        ]),
+                        dbc.FormGroup([
+                            dbc.Label("Date Range"), 
+                            dcc.DatePickerRange(id='date-range', className='ml-3')
+                        ])
 
+                    ])
+                ]),
+                dbc.Col([
+                    dcc.Loading(
+                        dbc.Row(html.Div(id='info-table')),
+                        type='dot'
+                    ),
+                ])
+            ],
+        ),
+        dbc.Row([
+            dbc.Col([
+                dcc.Loading(dcc.Graph(id='plot'), type='dot')
             ])
-        ])
-    ]),
-    dcc.Loading(
-        dbc.Row(html.Div(id='info-table')),
-        type='dot'
-    ),
-    dbc.Row([
-        dbc.Col([
-            dcc.Loading(dcc.Graph(id='plot'), type='dot')
-        ])
-    ]),
-])
+        ]),
+    ],
+    fluid=True
+)
 
 navbar = dbc.NavbarSimple(
     children=[
