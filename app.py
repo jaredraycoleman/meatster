@@ -70,10 +70,9 @@ def get_sections(slug_id: str):
     return reports 
 
 def get_names(slug_id: str, section: str, start: str, end: str):
-    str_start = start.strftime("%d/%m/%Y")
-    str_end = end.strftime("%d/%m/%Y")
+    str_start = start.strftime("%m/%d/%Y")
+    str_end = end.strftime("%m/%d/%Y")
     res = requests.get(f"{URL}/reports/{slug_id}/{section}?q=published_date={str_start}:{str_end}")
-    # print(f"{URL}/reports/{slug_id}/{section}?q=published_date={start}:{end}")
     names = {}
     for result in res.json()["results"]:
         name = get_name(result)
@@ -83,8 +82,8 @@ def get_names(slug_id: str, section: str, start: str, end: str):
     return names 
 
 def get_data(slug_id: str, section: str, name: str, start: datetime, end: datetime):
-    str_start = start.strftime("%d/%m/%Y")
-    str_end = end.strftime("%d/%m/%Y")
+    str_start = start.strftime("%m/%d/%Y")
+    str_end = end.strftime("%m/%d/%Y")
     res = requests.get(f"{URL}/reports/{slug_id}/{section}?q=published_date={str_start}:{str_end}")
     rows = []
     for data in res.json()["results"]:
@@ -218,10 +217,8 @@ def cb_names(report, section, start, end):
 
     if start:
         start_date = dateparse(start)
-        # start_date = datetime(year=start_date.year, month=start_date.month, day=start_date.day)
     if end:
         end_date = dateparse(end)
-        # end_date = datetime(year=start_date.year, month=start_date.month, day=start_date.day)
 
     return to_options(get_names(report, section, start_date, end_date))
 
@@ -235,24 +232,6 @@ def cb_name_clear(report, section):
               [Input('dropdown-report', 'value')])
 def cb_name_clear(report):
     return None
-
-# @app.callback(Output('dropdown-metric', 'options'),
-#              [Input("dropdown-report", "value"), 
-#              Input("dropdown-section", "value"), 
-#              Input("dropdown-name", "value"),
-#              Input('date-range', 'start_date'),
-#              Input('date-range', 'end_date')])
-# def cb_metric(report, section, name, start, end):
-#     if not report or not section or not name or not start or not end:
-#         return dash.no_update
-
-#     if start:
-#         start_date = dateparse(start)
-#     if end:
-#         end_date = dateparse(end)
-
-#     df = get_data(report, section, name, start_date, end_date)
-#     return to_options({col: col for col, dtype in VALUES.items() if dtype == numeric and col in df.columns})
 
 @app.callback([Output('plot', 'figure'), 
                Output('info-table', 'children')],
@@ -298,17 +277,6 @@ def cb_plot(report, section, name, start, end): #metric, start, end):
 
 def main():
     app.run_server(debug=True)
-
-    # df, summary = get_data_summary(
-    #     report="2457",
-    #     section="Lower 1-3 Choice Items", 
-    #     name="Rib, ribeye, lip-on, bn-in (109E  1)",
-    #     start_date=datetime(year=2018, month=1, day=1),
-    #     end_date=datetime(year=2021, month=3, day=1)
-    # ) 
-    # print(df)
-    # print(summary)
-
 
 if __name__ == "__main__":
     main()
