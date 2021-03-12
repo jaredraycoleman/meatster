@@ -181,7 +181,7 @@ body = dbc.Container(
 
 navbar = dbc.NavbarSimple(
     children=[
-        dbc.NavItem(dbc.NavLink('Source', href='#')),
+        dbc.NavItem(dbc.NavLink('Source', href='https://github.com/jaredraycoleman/meatster')),
     ],
     brand='Meatster',
     brand_href='#',
