@@ -28,7 +28,7 @@ VALUES = {
     "price_range_high": numeric,
     "weighted_average": numeric
 }
-DEFAULT_COLS = {'Price Range Low', 'Price Range High', 'Weighted Average'}
+DEFAULT_COLS = {'price_range_low', 'price_range_high', 'weighted_average'}
 SECTIONS = [
     "Upper 2-3 Choice Items",
     "Lower 1-3 Choice Items",
@@ -164,23 +164,21 @@ server = app.server
 def cb_reports(pathname):
     return to_options(get_reports()), datetime.today() - timedelta(days=365), datetime.today()
 
-@app.callback([Output('dropdown-section', 'options'),
-               Output('dropdown-section', 'value')],
+@app.callback(Output('dropdown-section', 'options'),
               [Input("dropdown-report", "value")])
 def cb_sections(report):
     if not report:
-        return dash.no_update, dash.no_update
-    return [to_options(get_sections(report)), None]
+        return dash.no_update
+    return to_options(get_sections(report))
 
-@app.callback([Output('dropdown-name', 'options'),
-               Output('dropdown-name', 'value')],
+@app.callback(Output('dropdown-name', 'options'),
               [Input("dropdown-report", "value"), 
                Input("dropdown-section", "value"),
                Input('date-range', 'start_date'),
                Input('date-range', 'end_date')])
 def cb_names(report, section, start, end):
     if not report or not section or not start or not end:
-        return dash.no_update, dash.no_update
+        return dash.no_update
 
     if start:
         start_date = dateparse(start)
@@ -189,7 +187,18 @@ def cb_names(report, section, start, end):
         end_date = dateparse(end)
         # end_date = datetime(year=start_date.year, month=start_date.month, day=start_date.day)
 
-    return to_options(get_names(report, section, start_date, end_date)), None
+    return to_options(get_names(report, section, start_date, end_date))
+
+@app.callback(Output('dropdown-name', 'value'),
+              [Input('dropdown-report', 'value'),
+               Input('dropdown-section', 'value')])
+def cb_name_clear(report, section):
+    return None
+
+@app.callback(Output('dropdown-section', 'value'),
+              [Input('dropdown-report', 'value')])
+def cb_name_clear(report):
+    return None
 
 # @app.callback(Output('dropdown-metric', 'options'),
 #              [Input("dropdown-report", "value"), 
@@ -218,7 +227,7 @@ def cb_names(report, section, start, end):
                Input('date-range', 'end_date')])
 def cb_plot(report, section, name, start, end): #metric, start, end):
     if not report or not section or not name or not start or not end:
-        return dash.no_update
+        return dash.no_update, dash.no_update
 
     if start:
         start_date = dateparse(start)
@@ -248,7 +257,7 @@ def cb_plot(report, section, name, start, end): #metric, start, end):
         hover=True,
     )
 
-    return [{'data': plots}, summary_table]
+    return {'data': plots}, summary_table
 
 
 def main():
