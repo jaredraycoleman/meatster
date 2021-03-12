@@ -134,6 +134,7 @@ app = dash.Dash(__name__, external_stylesheets=[
 price_up = html.I(className='fa fa-chevron-up fa-2x', style={'color': '#5cb85c'})
 price_down = html.I(className='fa fa-chevron-down fa-2x', style={'color': '#d9534f'})
 
+app.title = "Meatster"
 
 body = dbc.Container(
     children=[
