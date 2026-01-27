@@ -2,12 +2,14 @@ name: Update USDA Data
 
 on:
   schedule:
-    # Run at 6 AM and 6 PM UTC on weekdays (USDA doesn't update weekends)
-    - cron: '0 6,18 * * 1-5'
+    # Poll every 30 minutes during USDA business hours (weekdays)
+    # USDA releases at 9:30 AM ET and 1:30 PM ET
+    # Run from 9:30 AM to 6 PM ET (14:30 to 23:00 UTC)
+    - cron: '30 14-23 * * 1-5'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
-  update-and-deploy:
+  check-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,15 +22,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check for new data
+        id: check
+        continue-on-error: true
+        run: npm run check-updates
+
       - name: Generate static data
+        if: steps.check.outcome == 'success'
         run: npm run generate-data
 
       - name: Build site
+        if: steps.check.outcome == 'success'
         run: npm run build:skip-data
 
       - name: Deploy to Cloudflare Pages
+        if: steps.check.outcome == 'success'
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: pages deploy dist --project-name=meatster
+
+      - name: Log skip reason
+        if: steps.check.outcome != 'success'
+        run: echo "No new data available. Skipping build."

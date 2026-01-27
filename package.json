@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "generate-data": "npx tsx scripts/generate-data.ts",
+    "check-updates": "npx tsx scripts/check-for-updates.ts",
     "build": "npm run generate-data && tsc -b && vite build",
     "build:skip-data": "tsc -b && vite build",
     "lint": "eslint .",
