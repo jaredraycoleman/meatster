@@ -1,10 +1,40 @@
-**/.vscode
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.wrangler/
+
+# Generated data (built at deploy time)
+public/data/
+
+# Python (legacy)
 **/__pycache__
 **/*.pickle
 reports
 **/csvs
 venv
 *.pyc
+
+# IDE
+**/.vscode
+.idea/
+
+# OS
 .DS_Store
+
+# Environment
 .env
+.env.local
+.env.*.local
 **/*.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# Cache
+.cache/
