@@ -7,7 +7,9 @@ import {
   SummaryStats,
   LoadingSpinner,
   ReportView,
+  AnalysisPanel,
 } from '@/components'
+import { BarChart3 } from 'lucide-react'
 import {
   useManifest,
   useReports,
@@ -50,6 +52,10 @@ const DEFAULT_METRICS: MetricConfig[] = [
   { key: 'pounds', label: 'Volume (lbs)', color: '#8b5cf6', yAxisId: 'volume', enabled: false },
 ]
 
+// Default selections
+const DEFAULT_REPORT = '2457'
+const DEFAULT_SECTION = 'Upper 2-3 Choice Items'
+
 function getInitialStateFromURL() {
   const params = new URLSearchParams(window.location.search)
   const report = params.get('report')
@@ -77,8 +83,8 @@ function getInitialStateFromURL() {
   }
 
   return {
-    report: report || null,
-    section: section || null,
+    report: report || DEFAULT_REPORT,
+    section: section || DEFAULT_SECTION,
     item: item || null,
     startDate,
     endDate,
@@ -134,6 +140,9 @@ export default function App() {
 
   // View mode: 'chart', 'report', or 'split'
   const [viewMode, setViewMode] = useState<'chart' | 'report' | 'split'>('split')
+
+  // Analysis panel state
+  const [showAnalysis, setShowAnalysis] = useState(false)
 
   // Update URL when state changes
   useEffect(() => {
@@ -209,14 +218,37 @@ export default function App() {
   }, [])
 
   const handleToggleMetric = useCallback((key: string) => {
-    setMetrics(prev =>
-      prev.map(m => (m.key === key ? { ...m, enabled: !m.enabled } : m))
-    )
+    setMetrics(prev => {
+      const clickedMetric = prev.find(m => m.key === key)
+      if (!clickedMetric) return prev
+
+      const isEnabling = !clickedMetric.enabled
+      const clickedAxisId = clickedMetric.yAxisId
+
+      // Volume metrics (trades, pounds) are mutually exclusive with each other AND with price metrics
+      const isVolumeMetric = clickedAxisId === 'volume'
+
+      return prev.map(m => {
+        if (m.key === key) {
+          // Toggle the clicked metric
+          return { ...m, enabled: !m.enabled }
+        } else if (isEnabling) {
+          if (m.yAxisId !== clickedAxisId) {
+            // Disable metrics on the other axis (price vs volume)
+            return { ...m, enabled: false }
+          } else if (isVolumeMetric && m.yAxisId === 'volume') {
+            // Volume metrics are mutually exclusive with each other (trades vs pounds)
+            return { ...m, enabled: false }
+          }
+        }
+        return m
+      })
+    })
   }, [])
 
   const isLoading = reportsLoading || sectionsLoading || itemsLoading
-  const dataAsOf = manifest?.dataEndDate
-    ? format(new Date(manifest.dataEndDate), 'MMM d, yyyy')
+  const dataAsOf = manifest?.generatedAt
+    ? format(new Date(manifest.generatedAt), 'MMM d, yyyy h:mm a')
     : null
 
   // Build a descriptive name for the current view (for favorites)
@@ -254,9 +286,16 @@ export default function App() {
           isLoading={priceLoading}
         />
 
-        {/* View mode toggle */}
+        {/* View mode toggle and analysis button */}
         {selectedReport && selectedSection && priceData?.chartData && priceData.chartData.length > 0 && (
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <button
+              onClick={() => setShowAnalysis(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-ranch-blue text-white rounded-lg hover:bg-ranch-light transition-colors font-medium"
+            >
+              <BarChart3 className="w-5 h-5" />
+              Analyze Prices
+            </button>
             <div className="flex rounded-lg border border-gray-200 overflow-hidden">
               <button
                 onClick={() => setViewMode('chart')}
@@ -406,6 +445,18 @@ export default function App() {
           </a>
         </div>
       </footer>
+
+      {/* Analysis Panel */}
+      <AnalysisPanel
+        isOpen={showAnalysis}
+        onClose={() => setShowAnalysis(false)}
+        records={priceData?.records ?? []}
+        allRecords={allPriceData?.records ?? []}
+        viewStartDate={startDate}
+        viewEndDate={endDate}
+        itemName={selectedItem}
+        sectionName={selectedSection}
+      />
     </div>
   )
 }
