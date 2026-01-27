@@ -1,4 +1,4 @@
-import { Beef, Github } from 'lucide-react'
+import { Beef } from 'lucide-react'
 import { Favorites } from './Favorites'
 
 interface HeaderProps {
@@ -28,15 +28,6 @@ export function Header({ dataAsOf, currentViewName }: HeaderProps) {
               </span>
             )}
             <Favorites currentName={currentViewName || ''} />
-            <a
-              href="https://github.com/jaredgoldman/meatster"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              title="View on GitHub"
-            >
-              <Github className="w-5 h-5" />
-            </a>
           </div>
         </div>
       </div>
