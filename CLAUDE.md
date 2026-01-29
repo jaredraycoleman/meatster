@@ -46,7 +46,9 @@ wrangler deploy  # Deploy the data-check scheduler
 
 USDA Market Price Reporting API: `https://mpr.datamart.ams.usda.gov/services/v1.1`
 
-Report ID `2457` = National Daily Boxed Beef Cutout & Boxed Beef Cuts (the primary report used).
+Key reports:
+- `2453` = National Daily Boxed Beef Cutout (publishes 2x daily, used for update checking)
+- `2457` = National Weekly Boxed Beef Cuts for Branded Product (app default)
 
 ## Legacy Files
 
