@@ -16,7 +16,7 @@ export function Header({ dataAsOf, currentViewName }: HeaderProps) {
             <div>
               <h1 className="text-2xl font-bold">Meatster</h1>
               <p className="text-sm text-blue-200">
-                USDA Beef Price Analytics for Harris Ranch
+                USDA Beef Price Analytics
               </p>
             </div>
           </div>

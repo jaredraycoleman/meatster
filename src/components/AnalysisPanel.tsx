@@ -97,10 +97,10 @@ export function AnalysisPanel({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-ranch-blue to-ranch-light text-white">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-200 bg-gradient-to-r from-ranch-blue to-ranch-light text-white">
           <div>
-            <h2 className="text-xl font-bold">Price Analysis</h2>
-            <p className="text-sm text-blue-200">
+            <h2 className="text-lg sm:text-xl font-bold">Price Analysis</h2>
+            <p className="text-xs sm:text-sm text-blue-200 truncate max-w-[200px] sm:max-w-none">
               {itemName || sectionName || 'Selected Data'}
             </p>
           </div>
@@ -113,25 +113,25 @@ export function AnalysisPanel({
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-200 bg-gray-50">
+        <div className="flex overflow-x-auto border-b border-gray-200 bg-gray-50">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-3 text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1 sm:gap-2 px-3 sm:px-6 py-3 text-sm font-medium transition-colors whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.id
                   ? 'text-ranch-blue border-b-2 border-ranch-blue bg-white'
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
               {tab.icon}
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           {activeTab === 'overview' && (
             <OverviewTab analyses={analyses} />
           )}
@@ -155,37 +155,37 @@ function OverviewTab({ analyses }: { analyses: AnalysesResult }) {
   const { trend, volatility, percentile, currentPrice, supportResistance } = analyses
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         {/* Current Price */}
         <MetricCard
           title="Current Price"
           value={`$${currentPrice.toFixed(2)}`}
           subtitle="Most recent"
-          icon={<Target className="w-5 h-5" />}
+          icon={<Target className="w-4 h-4 sm:w-5 sm:h-5" />}
           color="blue"
         />
 
         {/* Trend */}
         <MetricCard
-          title="Price Trend"
+          title="Trend"
           value={`${trend.changePercent >= 0 ? '+' : ''}${trend.changePercent.toFixed(1)}%`}
-          subtitle={trend.direction === 'up' ? 'Trending up' : trend.direction === 'down' ? 'Trending down' : 'Stable'}
+          subtitle={trend.direction === 'up' ? 'Up' : trend.direction === 'down' ? 'Down' : 'Stable'}
           icon={
-            trend.direction === 'up' ? <TrendingUp className="w-5 h-5" /> :
-            trend.direction === 'down' ? <TrendingDown className="w-5 h-5" /> :
-            <Minus className="w-5 h-5" />
+            trend.direction === 'up' ? <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" /> :
+            trend.direction === 'down' ? <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" /> :
+            <Minus className="w-4 h-4 sm:w-5 sm:h-5" />
           }
           color={trend.direction === 'up' ? 'red' : trend.direction === 'down' ? 'green' : 'gray'}
         />
 
         {/* Percentile */}
         <MetricCard
-          title="Price Percentile"
+          title="Percentile"
           value={`${percentile.currentPercentile.toFixed(0)}th`}
-          subtitle="vs 2-year history"
-          icon={<BarChart3 className="w-5 h-5" />}
+          subtitle="vs 2yr"
+          icon={<BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />}
           color={percentile.currentPercentile <= 40 ? 'green' : percentile.currentPercentile >= 70 ? 'red' : 'yellow'}
         />
 
@@ -194,20 +194,20 @@ function OverviewTab({ analyses }: { analyses: AnalysesResult }) {
           title="Volatility"
           value={volatility.level.charAt(0).toUpperCase() + volatility.level.slice(1)}
           subtitle={`CV: ${volatility.coefficientOfVariation.toFixed(1)}%`}
-          icon={<Activity className="w-5 h-5" />}
+          icon={<Activity className="w-4 h-4 sm:w-5 sm:h-5" />}
           color={volatility.level === 'low' ? 'green' : volatility.level === 'high' ? 'red' : 'yellow'}
         />
       </div>
 
       {/* Interpretation */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 mb-2">Market Insight</h3>
-        <p className="text-blue-800">{percentile.interpretation}</p>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+        <h3 className="font-semibold text-blue-900 mb-1 sm:mb-2 text-sm sm:text-base">Market Insight</h3>
+        <p className="text-blue-800 text-xs sm:text-sm">{percentile.interpretation}</p>
       </div>
 
-      {/* Support/Resistance */}
+      {/* Support/Resistance - hidden on mobile */}
       {supportResistance && (
-        <div className="bg-gray-50 rounded-lg p-4">
+        <div className="hidden sm:block bg-gray-50 rounded-lg p-4">
           <h3 className="font-semibold text-gray-900 mb-3">Support & Resistance Levels</h3>
           <div className="flex items-center gap-4">
             <div className="flex-1">
@@ -254,60 +254,60 @@ function TrendsTab({ analyses }: { analyses: AnalysesResult }) {
   const { trend, movingAverages, currentPrice } = analyses
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Trend Direction */}
-      <div className={`rounded-lg p-6 ${
+      <div className={`rounded-lg p-3 sm:p-6 ${
         trend.direction === 'up' ? 'bg-red-50 border border-red-200' :
         trend.direction === 'down' ? 'bg-green-50 border border-green-200' :
         'bg-gray-50 border border-gray-200'
       }`}>
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-full ${
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className={`p-2 sm:p-3 rounded-full ${
             trend.direction === 'up' ? 'bg-red-100' :
             trend.direction === 'down' ? 'bg-green-100' :
             'bg-gray-100'
           }`}>
-            {trend.direction === 'up' ? <TrendingUp className="w-8 h-8 text-red-600" /> :
-             trend.direction === 'down' ? <TrendingDown className="w-8 h-8 text-green-600" /> :
-             <Minus className="w-8 h-8 text-gray-600" />}
+            {trend.direction === 'up' ? <TrendingUp className="w-5 h-5 sm:w-8 sm:h-8 text-red-600" /> :
+             trend.direction === 'down' ? <TrendingDown className="w-5 h-5 sm:w-8 sm:h-8 text-green-600" /> :
+             <Minus className="w-5 h-5 sm:w-8 sm:h-8 text-gray-600" />}
           </div>
           <div>
-            <h3 className="text-xl font-bold text-gray-900">
+            <h3 className="text-base sm:text-xl font-bold text-gray-900">
               {trend.direction === 'up' ? 'Prices Rising' :
                trend.direction === 'down' ? 'Prices Falling' :
                'Prices Stable'}
             </h3>
-            <p className="text-gray-600">
-              {trend.changePercent >= 0 ? '+' : ''}{trend.changePercent.toFixed(2)}% change in selected period
+            <p className="text-xs sm:text-base text-gray-600">
+              {trend.changePercent >= 0 ? '+' : ''}{trend.changePercent.toFixed(2)}% change
             </p>
           </div>
         </div>
       </div>
 
       {/* Moving Averages */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <h3 className="font-semibold text-gray-900 mb-4">Moving Averages</h3>
-        <div className="space-y-3">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+        <h3 className="font-semibold text-gray-900 mb-2 sm:mb-4 text-sm sm:text-base">Moving Averages</h3>
+        <div className="space-y-2 sm:space-y-3">
           <MovingAverageRow
-            label="7-Day MA"
+            label="7-Day"
             value={movingAverages.ma7}
             currentPrice={currentPrice}
           />
           <MovingAverageRow
-            label="30-Day MA"
+            label="30-Day"
             value={movingAverages.ma30}
             currentPrice={currentPrice}
           />
           <MovingAverageRow
-            label="90-Day MA"
+            label="90-Day"
             value={movingAverages.ma90}
             currentPrice={currentPrice}
           />
         </div>
       </div>
 
-      {/* Trading Signals */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
+      {/* Trading Signals - hidden on mobile */}
+      <div className="hidden sm:block bg-white border border-gray-200 rounded-lg p-4">
         <h3 className="font-semibold text-gray-900 mb-3">Trading Signals</h3>
         <div className="space-y-2">
           {movingAverages.ma7 && movingAverages.ma30 && (
@@ -339,62 +339,55 @@ function ComparisonTab({ analyses }: { analyses: AnalysesResult }) {
   const { yoy, seasonal } = analyses
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Year-over-Year */}
       {yoy ? (
-        <div className={`rounded-lg p-6 ${
+        <div className={`rounded-lg p-3 sm:p-6 ${
           yoy.changePercent < 0 ? 'bg-green-50 border border-green-200' :
           yoy.changePercent > 0 ? 'bg-red-50 border border-red-200' :
           'bg-gray-50 border border-gray-200'
         }`}>
-          <h3 className="font-semibold text-gray-900 mb-4">Year-over-Year Comparison</h3>
-          <div className="grid grid-cols-3 gap-4 text-center">
+          <h3 className="font-semibold text-gray-900 mb-2 sm:mb-4 text-sm sm:text-base">Year-over-Year</h3>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
             <div>
-              <p className="text-sm text-gray-600">Last Year Avg</p>
-              <p className="text-2xl font-bold text-gray-900">${yoy.lastYearAvg.toFixed(2)}</p>
-              <p className="text-xs text-gray-500">{yoy.dataPoints.lastYear} data points</p>
+              <p className="text-xs sm:text-sm text-gray-600">Last Year</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-900">${yoy.lastYearAvg.toFixed(2)}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Change</p>
-              <p className={`text-2xl font-bold ${yoy.changePercent < 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <p className="text-xs sm:text-sm text-gray-600">Change</p>
+              <p className={`text-lg sm:text-2xl font-bold ${yoy.changePercent < 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {yoy.changePercent >= 0 ? '+' : ''}{yoy.changePercent.toFixed(1)}%
               </p>
-              <p className="text-xs text-gray-500">
-                {yoy.changePercent < 0 ? 'Lower' : 'Higher'} than last year
-              </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600">Current Avg</p>
-              <p className="text-2xl font-bold text-gray-900">${yoy.currentAvg.toFixed(2)}</p>
-              <p className="text-xs text-gray-500">{yoy.dataPoints.current} data points</p>
+              <p className="text-xs sm:text-sm text-gray-600">Current</p>
+              <p className="text-lg sm:text-2xl font-bold text-gray-900">${yoy.currentAvg.toFixed(2)}</p>
             </div>
           </div>
         </div>
       ) : (
-        <div className="bg-gray-50 rounded-lg p-6 text-center text-gray-500">
-          Not enough historical data for year-over-year comparison
+        <div className="bg-gray-50 rounded-lg p-3 sm:p-6 text-center text-gray-500 text-sm">
+          Not enough historical data
         </div>
       )}
 
       {/* Seasonal Patterns */}
       {seasonal && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <h3 className="font-semibold text-gray-900 mb-4">Seasonal Patterns (2-Year History)</h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-green-50 rounded-lg p-3 text-center">
-              <p className="text-sm text-gray-600">Best Month to Buy</p>
-              <p className="text-lg font-bold text-green-700">{seasonal.bestMonth}</p>
-              <p className="text-xs text-gray-500">Lowest average prices</p>
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+          <h3 className="font-semibold text-gray-900 mb-2 sm:mb-4 text-sm sm:text-base">Seasonal Patterns</h3>
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
+            <div className="bg-green-50 rounded-lg p-2 sm:p-3 text-center">
+              <p className="text-xs sm:text-sm text-gray-600">Best Month</p>
+              <p className="text-base sm:text-lg font-bold text-green-700">{seasonal.bestMonth.slice(0, 3)}</p>
             </div>
-            <div className="bg-red-50 rounded-lg p-3 text-center">
-              <p className="text-sm text-gray-600">Most Expensive Month</p>
-              <p className="text-lg font-bold text-red-700">{seasonal.worstMonth}</p>
-              <p className="text-xs text-gray-500">Highest average prices</p>
+            <div className="bg-red-50 rounded-lg p-2 sm:p-3 text-center">
+              <p className="text-xs sm:text-sm text-gray-600">Worst Month</p>
+              <p className="text-base sm:text-lg font-bold text-red-700">{seasonal.worstMonth.slice(0, 3)}</p>
             </div>
           </div>
 
-          {/* Monthly Chart */}
-          <div className="space-y-2">
+          {/* Monthly Chart - hidden on mobile */}
+          <div className="hidden sm:block space-y-2 mt-4">
             {seasonal.monthlyAverages.map((m: { month: string; avg: number }) => {
               const maxAvg = Math.max(...seasonal.monthlyAverages.map((x: { avg: number }) => x.avg))
               const minAvg = Math.min(...seasonal.monthlyAverages.map((x: { avg: number }) => x.avg))
@@ -439,46 +432,47 @@ function TimingTab({ analyses }: { analyses: AnalysesResult }) {
   const worstDay = sortedDays[sortedDays.length - 1]
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3 sm:space-y-6">
       {/* Buying Recommendation */}
-      <div className={`rounded-lg p-6 ${
+      <div className={`rounded-lg p-3 sm:p-6 ${
         percentile.currentPercentile <= 30 ? 'bg-green-50 border border-green-200' :
         percentile.currentPercentile >= 70 ? 'bg-red-50 border border-red-200' :
         'bg-yellow-50 border border-yellow-200'
       }`}>
-        <h3 className="font-semibold text-gray-900 mb-2">Buying Recommendation</h3>
-        <p className={`text-lg font-bold ${
+        <h3 className="font-semibold text-gray-900 mb-1 sm:mb-2 text-sm sm:text-base">Buying Recommendation</h3>
+        <p className={`text-base sm:text-lg font-bold ${
           percentile.currentPercentile <= 30 ? 'text-green-700' :
           percentile.currentPercentile >= 70 ? 'text-red-700' :
           'text-yellow-700'
         }`}>
-          {percentile.currentPercentile <= 20 ? 'Strong Buy - Excellent Opportunity' :
+          {percentile.currentPercentile <= 20 ? 'Strong Buy' :
            percentile.currentPercentile <= 40 ? 'Buy - Good Value' :
            percentile.currentPercentile <= 60 ? 'Hold - Fair Price' :
-           percentile.currentPercentile <= 80 ? 'Wait - Above Average' :
-           'Caution - Near Historical Highs'}
+           percentile.currentPercentile <= 80 ? 'Wait' :
+           'Caution - Near Highs'}
         </p>
-        <p className="text-gray-600 mt-1">{percentile.interpretation}</p>
+        <p className="text-gray-600 mt-1 text-xs sm:text-sm">{percentile.interpretation}</p>
       </div>
 
       {/* Day of Week Patterns */}
       {dayOfWeek.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-4">
-          <h3 className="font-semibold text-gray-900 mb-4">Day of Week Patterns</h3>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="bg-green-50 rounded-lg p-3 text-center">
-              <p className="text-sm text-gray-600">Best Day to Buy</p>
-              <p className="text-lg font-bold text-green-700">{bestDay?.day}</p>
-              <p className="text-xs text-gray-500">Avg: ${bestDay?.avg.toFixed(2)}</p>
+        <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+          <h3 className="font-semibold text-gray-900 mb-2 sm:mb-4 text-sm sm:text-base">Day of Week Patterns</h3>
+          <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-3 sm:mb-4">
+            <div className="bg-green-50 rounded-lg p-2 sm:p-3 text-center">
+              <p className="text-xs sm:text-sm text-gray-600">Best Day</p>
+              <p className="text-base sm:text-lg font-bold text-green-700">{bestDay?.day.slice(0, 3)}</p>
+              <p className="text-xs text-gray-500">${bestDay?.avg.toFixed(2)}</p>
             </div>
-            <div className="bg-red-50 rounded-lg p-3 text-center">
-              <p className="text-sm text-gray-600">Most Expensive Day</p>
-              <p className="text-lg font-bold text-red-700">{worstDay?.day}</p>
-              <p className="text-xs text-gray-500">Avg: ${worstDay?.avg.toFixed(2)}</p>
+            <div className="bg-red-50 rounded-lg p-2 sm:p-3 text-center">
+              <p className="text-xs sm:text-sm text-gray-600">Worst Day</p>
+              <p className="text-base sm:text-lg font-bold text-red-700">{worstDay?.day.slice(0, 3)}</p>
+              <p className="text-xs text-gray-500">${worstDay?.avg.toFixed(2)}</p>
             </div>
           </div>
 
-          <div className="space-y-2">
+          {/* Day-of-week chart - hidden on mobile */}
+          <div className="hidden sm:block space-y-2">
             {dayOfWeek.map((d: { day: string; avg: number; count: number }) => {
               const maxAvg = Math.max(...dayOfWeek.map((x: { avg: number }) => x.avg))
               const minAvg = Math.min(...dayOfWeek.map((x: { avg: number }) => x.avg))
@@ -507,14 +501,14 @@ function TimingTab({ analyses }: { analyses: AnalysesResult }) {
       )}
 
       {/* Market Conditions Summary */}
-      <div className="bg-white border border-gray-200 rounded-lg p-4">
-        <h3 className="font-semibold text-gray-900 mb-3">Market Conditions</h3>
-        <div className="space-y-2">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4">
+        <h3 className="font-semibold text-gray-900 mb-2 sm:mb-3 text-sm sm:text-base">Market Conditions</h3>
+        <div className="space-y-1 sm:space-y-2">
           <ConditionRow
             label="Price Level"
             value={
               percentile.currentPercentile <= 30 ? 'Low' :
-              percentile.currentPercentile >= 70 ? 'High' : 'Average'
+              percentile.currentPercentile >= 70 ? 'High' : 'Avg'
             }
             status={percentile.currentPercentile <= 40 ? 'good' : percentile.currentPercentile >= 70 ? 'bad' : 'neutral'}
           />
@@ -523,8 +517,9 @@ function TimingTab({ analyses }: { analyses: AnalysesResult }) {
             value={volatility.level.charAt(0).toUpperCase() + volatility.level.slice(1)}
             status={volatility.level === 'low' ? 'good' : volatility.level === 'high' ? 'bad' : 'neutral'}
           />
+          {/* Support/Resistance - hidden on mobile */}
           {supportResistance && (
-            <>
+            <div className="hidden sm:block">
               <ConditionRow
                 label="Near Support"
                 value={supportResistance.nearSupport ? 'Yes' : 'No'}
@@ -535,7 +530,7 @@ function TimingTab({ analyses }: { analyses: AnalysesResult }) {
                 value={supportResistance.nearResistance ? 'Yes' : 'No'}
                 status={supportResistance.nearResistance ? 'bad' : 'neutral'}
               />
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -566,13 +561,13 @@ function MetricCard({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <div className={`p-2 rounded-lg ${colors[color]}`}>{icon}</div>
-        <span className="text-sm font-medium text-gray-600">{title}</span>
+    <div className="bg-white border border-gray-200 rounded-lg p-2 sm:p-4">
+      <div className="flex items-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+        <div className={`p-1 sm:p-2 rounded-lg ${colors[color]}`}>{icon}</div>
+        <span className="text-xs sm:text-sm font-medium text-gray-600">{title}</span>
       </div>
-      <p className="text-2xl font-bold text-gray-900">{value}</p>
-      <p className="text-sm text-gray-500">{subtitle}</p>
+      <p className="text-lg sm:text-2xl font-bold text-gray-900">{value}</p>
+      <p className="text-xs sm:text-sm text-gray-500">{subtitle}</p>
     </div>
   )
 }

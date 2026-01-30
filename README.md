@@ -1,6 +1,6 @@
 # Meatster
 
-USDA Beef Price Analytics Dashboard for Harris Ranch Beef.
+USDA Beef Price Analytics Dashboard.
 
 ## Tech Stack
 

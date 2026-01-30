@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Calendar } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Calendar, ChevronDown, ChevronUp, Filter } from 'lucide-react'
 import { SearchableSelect } from './SearchableSelect'
 import type { Report, Section } from '@/types'
 import { format } from 'date-fns'
@@ -37,6 +37,8 @@ export function FilterPanel({
   onEndDateChange,
   isLoading,
 }: FilterPanelProps) {
+  const [isCollapsed, setIsCollapsed] = useState(true) // Collapsed by default on mobile
+
   const reportOptions = useMemo(
     () =>
       reports.map(report => ({
@@ -64,9 +66,36 @@ export function FilterPanel({
     [items]
   )
 
+  // Build summary text for collapsed state
+  const summaryText = useMemo(() => {
+    const parts: string[] = []
+    if (selectedSection) parts.push(selectedSection)
+    if (selectedItem) parts.push(selectedItem)
+    return parts.length > 0 ? parts.join(' › ') : 'Select filters'
+  }, [selectedSection, selectedItem])
+
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Mobile collapsed header */}
+      <button
+        onClick={() => setIsCollapsed(!isCollapsed)}
+        className="sm:hidden flex items-center justify-between w-full text-left mb-2"
+      >
+        <div className="flex items-center gap-2">
+          <Filter className="w-4 h-4 text-gray-500" />
+          <span className="font-medium text-gray-900">Filters</span>
+          <span className="text-sm text-gray-500 truncate max-w-[200px]">{summaryText}</span>
+        </div>
+        {isCollapsed ? (
+          <ChevronDown className="w-5 h-5 text-gray-500" />
+        ) : (
+          <ChevronUp className="w-5 h-5 text-gray-500" />
+        )}
+      </button>
+
+      {/* Filter content - hidden on mobile when collapsed */}
+      <div className={`${isCollapsed ? 'hidden' : 'block'} sm:block`}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Report Select */}
         <SearchableSelect
           label="Report"
@@ -127,6 +156,7 @@ export function FilterPanel({
             />
             <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
           </div>
+        </div>
         </div>
       </div>
     </div>

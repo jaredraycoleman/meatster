@@ -1,6 +1,6 @@
 # Meatster
 
-USDA beef price analytics dashboard for Harris Ranch Beef. Modernized from Python/Dash to TypeScript/React.
+USDA beef price analytics dashboard. Modernized from Python/Dash to TypeScript/React.
 
 ## Commands
 

@@ -1,16 +1,22 @@
-import { TrendingUp, TrendingDown, DollarSign, Scale } from 'lucide-react'
+import { useState } from 'react'
+import { TrendingUp, TrendingDown, DollarSign, Scale, ChevronDown, ChevronUp, BarChart2, BarChart3 } from 'lucide-react'
 import type { PriceSummary } from '@/types'
 
 interface SummaryStatsProps {
   summary: PriceSummary | null
   isLoading: boolean
+  onAnalyze?: () => void
 }
 
-export function SummaryStats({ summary, isLoading }: SummaryStatsProps) {
+export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProps) {
+  const [isCollapsed, setIsCollapsed] = useState(true) // Collapsed by default on mobile
+
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Summary Statistics</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Summary Statistics</h3>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="animate-pulse">
@@ -74,20 +80,62 @@ export function SummaryStats({ summary, isLoading }: SummaryStatsProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Summary Statistics</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {stats.map(stat => (
-          <div
-            key={stat.label}
-            className={`${stat.bgColor} rounded-lg p-3 transition-transform hover:scale-105`}
+      {/* Mobile collapsed header */}
+      <div className="sm:hidden flex items-center justify-between">
+        <button
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="flex items-center gap-2 flex-1 text-left"
+        >
+          <BarChart2 className="w-4 h-4 text-gray-500" />
+          <span className="font-medium text-gray-900">Summary</span>
+          <span className="text-sm text-blue-600 font-medium">${summary.mean.toFixed(2)} avg</span>
+          {isCollapsed ? (
+            <ChevronDown className="w-5 h-5 text-gray-500 ml-auto" />
+          ) : (
+            <ChevronUp className="w-5 h-5 text-gray-500 ml-auto" />
+          )}
+        </button>
+        {onAnalyze && (
+          <button
+            onClick={onAnalyze}
+            className="ml-2 flex items-center gap-1 px-3 py-1.5 bg-ranch-blue text-white rounded-lg hover:bg-ranch-light transition-colors text-sm font-medium"
           >
-            <div className="flex items-center gap-2 mb-1">
-              <stat.icon className={`w-4 h-4 ${stat.color}`} />
-              <span className="text-xs text-gray-600">{stat.label}</span>
+            <BarChart3 className="w-4 h-4" />
+            <span>Analyze</span>
+          </button>
+        )}
+      </div>
+
+      {/* Desktop header */}
+      <div className="hidden sm:flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-gray-900">Summary Statistics</h3>
+        {onAnalyze && (
+          <button
+            onClick={onAnalyze}
+            className="flex items-center gap-2 px-4 py-2 bg-ranch-blue text-white rounded-lg hover:bg-ranch-light transition-colors font-medium"
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span>Analyze Prices</span>
+          </button>
+        )}
+      </div>
+
+      {/* Stats grid - hidden on mobile when collapsed */}
+      <div className={`${isCollapsed ? 'hidden' : 'mt-4'} sm:block`}>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {stats.map(stat => (
+            <div
+              key={stat.label}
+              className={`${stat.bgColor} rounded-lg p-3 transition-transform hover:scale-105`}
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                <span className="text-xs text-gray-600">{stat.label}</span>
+              </div>
+              <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
             </div>
-            <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   )

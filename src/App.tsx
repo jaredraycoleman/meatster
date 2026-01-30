@@ -9,7 +9,6 @@ import {
   ReportView,
   AnalysisPanel,
 } from '@/components'
-import { BarChart3 } from 'lucide-react'
 import {
   useManifest,
   useReports,
@@ -139,7 +138,7 @@ export default function App() {
   const [metrics, setMetrics] = useState<MetricConfig[]>(DEFAULT_METRICS)
 
   // View mode: 'chart', 'report', or 'split'
-  const [viewMode, setViewMode] = useState<'chart' | 'report' | 'split'>('split')
+  const [viewMode, setViewMode] = useState<'chart' | 'report' | 'split'>('report')
 
   // Analysis panel state
   const [showAnalysis, setShowAnalysis] = useState(false)
@@ -284,18 +283,12 @@ export default function App() {
         <SummaryStats
           summary={priceData?.summary ?? null}
           isLoading={priceLoading}
+          onAnalyze={priceData?.chartData && priceData.chartData.length > 0 ? () => setShowAnalysis(true) : undefined}
         />
 
-        {/* View mode toggle and analysis button */}
+        {/* Mobile-only toggle between Chart and Report */}
         {selectedReport && selectedSection && priceData?.chartData && priceData.chartData.length > 0 && (
-          <div className="flex justify-between items-center mb-4">
-            <button
-              onClick={() => setShowAnalysis(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-ranch-blue text-white rounded-lg hover:bg-ranch-light transition-colors font-medium"
-            >
-              <BarChart3 className="w-5 h-5" />
-              Analyze Prices
-            </button>
+          <div className="lg:hidden flex justify-end mb-4">
             <div className="flex rounded-lg border border-gray-200 overflow-hidden">
               <button
                 onClick={() => setViewMode('chart')}
@@ -306,16 +299,6 @@ export default function App() {
                 }`}
               >
                 Chart
-              </button>
-              <button
-                onClick={() => setViewMode('split')}
-                className={`px-4 py-2 text-sm font-medium transition-colors ${
-                  viewMode === 'split'
-                    ? 'bg-ranch-blue text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                Split View
               </button>
               <button
                 onClick={() => setViewMode('report')}
@@ -342,28 +325,9 @@ export default function App() {
             <LoadingSpinner message="Loading price data..." />
           </div>
         ) : priceData?.chartData && priceData.chartData.length > 0 ? (
-          viewMode === 'chart' ? (
-            <PriceChart
-              data={priceData.chartData}
-              metrics={metrics}
-              onToggleMetric={handleToggleMetric}
-              viewStartDate={startDate}
-              viewEndDate={endDate}
-            />
-          ) : viewMode === 'report' ? (
-            <div className="h-[600px]">
-              <ReportView
-                records={priceData.records}
-                allRecords={allPriceData?.records || []}
-                reportTitle={reports.find(r => r.slug_id === selectedReport)?.report_title || ''}
-                sectionName={selectedSection}
-                viewStartDate={startDate}
-                viewEndDate={endDate}
-                highlightedItem={selectedItem}
-              />
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <>
+            {/* Desktop: Always split view */}
+            <div className="hidden lg:grid lg:grid-cols-2 gap-4">
               <div className="h-[600px]">
                 <ReportView
                   records={priceData.records}
@@ -383,7 +347,32 @@ export default function App() {
                 viewEndDate={endDate}
               />
             </div>
-          )
+
+            {/* Mobile: Toggle between chart and report */}
+            <div className="lg:hidden">
+              {viewMode === 'chart' ? (
+                <PriceChart
+                  data={priceData.chartData}
+                  metrics={metrics}
+                  onToggleMetric={handleToggleMetric}
+                  viewStartDate={startDate}
+                  viewEndDate={endDate}
+                />
+              ) : (
+                <div className="h-[600px]">
+                  <ReportView
+                    records={priceData.records}
+                    allRecords={allPriceData?.records || []}
+                    reportTitle={reports.find(r => r.slug_id === selectedReport)?.report_title || ''}
+                    sectionName={selectedSection}
+                    viewStartDate={startDate}
+                    viewEndDate={endDate}
+                    highlightedItem={selectedItem}
+                  />
+                </div>
+              )}
+            </div>
+          </>
         ) : (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <p className="text-gray-500 text-lg">
@@ -392,48 +381,6 @@ export default function App() {
           </div>
         )}
 
-        {priceData?.records && priceData.records.length > 0 && (
-          <div className="mt-6 bg-white rounded-lg shadow-md p-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Data Points: {priceData.records.length.toLocaleString()}
-            </h3>
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-2 px-3 font-medium text-gray-600">Date</th>
-                    <th className="text-left py-2 px-3 font-medium text-gray-600">Item</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-600">Low</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-600">High</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-600">Avg</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-600">Trades</th>
-                    <th className="text-right py-2 px-3 font-medium text-gray-600">Volume</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {priceData.records.slice(-50).reverse().map((record, idx) => (
-                    <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-2 px-3">{record.report_date}</td>
-                      <td className="py-2 px-3 max-w-xs truncate" title={record.item_description}>
-                        {record.item_description}
-                      </td>
-                      <td className="py-2 px-3 text-right">${record.price_range_low.toFixed(2)}</td>
-                      <td className="py-2 px-3 text-right">${record.price_range_high.toFixed(2)}</td>
-                      <td className="py-2 px-3 text-right font-medium">${record.weighted_average.toFixed(2)}</td>
-                      <td className="py-2 px-3 text-right">{record.number_trades.toLocaleString()}</td>
-                      <td className="py-2 px-3 text-right">{record.total_pounds.toLocaleString()} lbs</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {priceData.records.length > 50 && (
-                <p className="text-sm text-gray-500 mt-2 text-center">
-                  Showing most recent 50 of {priceData.records.length.toLocaleString()} records
-                </p>
-              )}
-            </div>
-          </div>
-        )}
       </main>
 
       <footer className="bg-white border-t border-gray-200 mt-auto">
