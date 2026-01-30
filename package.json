@@ -4,14 +4,13 @@
   "version": "2.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "generate-data": "npx tsx scripts/generate-data.ts",
     "check-updates": "npx tsx scripts/check-for-updates.ts",
     "build": "npm run generate-data && tsc -b && vite build",
     "build:skip-data": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist"
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "preview": "npm run build:skip-data && wrangler pages dev dist"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",

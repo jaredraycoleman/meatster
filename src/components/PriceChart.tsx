@@ -76,28 +76,47 @@ export function PriceChart({ data, metrics, onToggleMetric, viewStartDate, viewE
       return t >= comparisonStart && t <= comparisonEnd
     })
 
-    // Merge by aligning indices (both should have similar # of data points)
+    // Merge by finding nearest date in comparison data for each current data point
+    // Also match by item description when viewing multiple items
     const merged: MergedDataPoint[] = []
-    const maxLen = Math.max(currentData.length, comparisonData.length)
 
-    for (let i = 0; i < maxLen; i++) {
+    for (let i = 0; i < currentData.length; i++) {
       const curr = currentData[i]
-      const comp = comparisonData[i]
+      const currTime = parseDate(curr.date).getTime()
+      const targetComparisonTime = currTime - offsetMs
+
+      // Filter comparison data to same item if item descriptions exist
+      const candidateComparisons = curr.itemDescription
+        ? comparisonData.filter(c => c.itemDescription === curr.itemDescription)
+        : comparisonData
+
+      // Find the comparison data point with the nearest date to the target
+      let nearestComp: ChartDataPoint | undefined
+      let nearestDistance = Infinity
+
+      for (const comp of candidateComparisons) {
+        const compTime = parseDate(comp.date).getTime()
+        const distance = Math.abs(compTime - targetComparisonTime)
+        if (distance < nearestDistance) {
+          nearestDistance = distance
+          nearestComp = comp
+        }
+      }
 
       merged.push({
         index: i,
-        currentDate: curr?.displayDate || '',
-        comparisonDate: comp?.displayDate || '',
-        priceLow: curr?.priceLow,
-        priceHigh: curr?.priceHigh,
-        weightedAverage: curr?.weightedAverage,
-        trades: curr?.trades,
-        pounds: curr?.pounds,
-        priceLow_prev: comp?.priceLow,
-        priceHigh_prev: comp?.priceHigh,
-        weightedAverage_prev: comp?.weightedAverage,
-        trades_prev: comp?.trades,
-        pounds_prev: comp?.pounds,
+        currentDate: curr.displayDate,
+        comparisonDate: nearestComp?.displayDate || '',
+        priceLow: curr.priceLow,
+        priceHigh: curr.priceHigh,
+        weightedAverage: curr.weightedAverage,
+        trades: curr.trades,
+        pounds: curr.pounds,
+        priceLow_prev: nearestComp?.priceLow,
+        priceHigh_prev: nearestComp?.priceHigh,
+        weightedAverage_prev: nearestComp?.weightedAverage,
+        trades_prev: nearestComp?.trades,
+        pounds_prev: nearestComp?.pounds,
       })
     }
 

@@ -73,6 +73,7 @@ export function usePriceData(
           weightedAverage: record.weighted_average,
           trades: record.number_trades,
           pounds: record.total_pounds,
+          itemDescription: record.item_description,
         }
       })
 

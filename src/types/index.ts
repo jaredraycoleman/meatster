@@ -44,6 +44,7 @@ export interface ChartDataPoint {
   weightedAverage: number
   trades: number
   pounds: number
+  itemDescription?: string
 }
 
 export type MetricKey = 'priceLow' | 'priceHigh' | 'weightedAverage' | 'trades' | 'pounds'

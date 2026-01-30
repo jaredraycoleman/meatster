@@ -354,10 +354,12 @@ export default function App() {
             <div className="h-[600px]">
               <ReportView
                 records={priceData.records}
+                allRecords={allPriceData?.records || []}
                 reportTitle={reports.find(r => r.slug_id === selectedReport)?.report_title || ''}
                 sectionName={selectedSection}
                 viewStartDate={startDate}
                 viewEndDate={endDate}
+                highlightedItem={selectedItem}
               />
             </div>
           ) : (
@@ -365,10 +367,12 @@ export default function App() {
               <div className="h-[600px]">
                 <ReportView
                   records={priceData.records}
+                  allRecords={allPriceData?.records || []}
                   reportTitle={reports.find(r => r.slug_id === selectedReport)?.report_title || ''}
                   sectionName={selectedSection}
                   viewStartDate={startDate}
                   viewEndDate={endDate}
+                  highlightedItem={selectedItem}
                 />
               </div>
               <PriceChart

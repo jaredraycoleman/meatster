@@ -1,0 +1,2 @@
+- [ ] In the all items plot, what exactly is being plotted? Is it the average of all items or something? I ask because the price varies alot
+- [ ] Can we also add a share button somewhere to share a current page (make it easy to share via socials/copy link on mobile, you know?)
