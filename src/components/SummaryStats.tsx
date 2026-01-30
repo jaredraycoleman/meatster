@@ -95,15 +95,6 @@ export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProp
             <ChevronUp className="w-5 h-5 text-gray-500 ml-auto" />
           )}
         </button>
-        {onAnalyze && (
-          <button
-            onClick={onAnalyze}
-            className="ml-2 flex items-center gap-1 px-3 py-1.5 bg-ranch-blue text-white rounded-lg hover:bg-ranch-light transition-colors text-sm font-medium"
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>Analyze</span>
-          </button>
-        )}
       </div>
 
       {/* Desktop header */}
@@ -136,6 +127,17 @@ export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProp
             </div>
           ))}
         </div>
+
+        {/* Mobile Analyze button - below stats */}
+        {onAnalyze && (
+          <button
+            onClick={onAnalyze}
+            className="sm:hidden w-full mt-4 flex items-center justify-center gap-2 px-4 py-2 bg-ranch-blue text-white rounded-lg hover:bg-ranch-light transition-colors font-medium"
+          >
+            <BarChart3 className="w-5 h-5" />
+            <span>Analyze Prices</span>
+          </button>
+        )}
       </div>
     </div>
   )

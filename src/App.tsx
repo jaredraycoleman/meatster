@@ -175,29 +175,76 @@ export default function App() {
   )
 
   // Filter data client-side by selected item (instant, no refetch)
+  // When no item selected, aggregate to daily averages
   const priceData = useMemo(() => {
     if (!allPriceData) return null
-    if (!selectedItem) return allPriceData
 
-    const filteredRecords = allPriceData.records.filter(
-      r => r.item_description === selectedItem
-    )
-    const filteredChartData = allPriceData.chartData.filter(
-      (_, idx) => allPriceData.records[idx]?.item_description === selectedItem
-    )
+    if (selectedItem) {
+      // Single item selected - filter to just that item
+      const filteredRecords = allPriceData.records.filter(
+        r => r.item_description === selectedItem
+      )
+      const filteredChartData = allPriceData.chartData.filter(
+        (_, idx) => allPriceData.records[idx]?.item_description === selectedItem
+      )
 
-    // Recalculate summary for filtered data
-    const prices = filteredRecords.map(r => r.weighted_average).filter(p => p > 0)
+      const prices = filteredRecords.map(r => r.weighted_average).filter(p => p > 0)
+      const summary = {
+        mean: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
+        median: calculateMedian(prices),
+        min: prices.length > 0 ? Math.min(...prices) : 0,
+        max: prices.length > 0 ? Math.max(...prices) : 0,
+        mode: calculateMode(prices),
+        total: filteredRecords.reduce((sum, r) => sum + r.total_pounds, 0),
+      }
+
+      return { chartData: filteredChartData, summary, records: filteredRecords }
+    }
+
+    // All items - aggregate to daily averages
+    const byDate = new Map<string, typeof allPriceData.chartData>()
+    for (const point of allPriceData.chartData) {
+      const existing = byDate.get(point.date) || []
+      existing.push(point)
+      byDate.set(point.date, existing)
+    }
+
+    // Create one aggregated point per date
+    const aggregatedChartData = Array.from(byDate.entries()).map(([date, points]) => {
+      const avgLow = points.reduce((sum, p) => sum + p.priceLow, 0) / points.length
+      const avgHigh = points.reduce((sum, p) => sum + p.priceHigh, 0) / points.length
+      const avgWeighted = points.reduce((sum, p) => sum + p.weightedAverage, 0) / points.length
+      const totalTrades = points.reduce((sum, p) => sum + p.trades, 0)
+      const totalPounds = points.reduce((sum, p) => sum + p.pounds, 0)
+
+      return {
+        date,
+        displayDate: points[0].displayDate,
+        priceLow: avgLow,
+        priceHigh: avgHigh,
+        weightedAverage: avgWeighted,
+        trades: totalTrades,
+        pounds: totalPounds,
+      }
+    }).sort((a, b) => {
+      // Sort by date
+      const dateA = parse(a.date, 'MM/dd/yyyy', new Date())
+      const dateB = parse(b.date, 'MM/dd/yyyy', new Date())
+      return dateA.getTime() - dateB.getTime()
+    })
+
+    // Summary uses all individual prices
+    const prices = allPriceData.records.map(r => r.weighted_average).filter(p => p > 0)
     const summary = {
       mean: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
       median: calculateMedian(prices),
       min: prices.length > 0 ? Math.min(...prices) : 0,
       max: prices.length > 0 ? Math.max(...prices) : 0,
       mode: calculateMode(prices),
-      total: filteredRecords.reduce((sum, r) => sum + r.total_pounds, 0),
+      total: allPriceData.records.reduce((sum, r) => sum + r.total_pounds, 0),
     }
 
-    return { chartData: filteredChartData, summary, records: filteredRecords }
+    return { chartData: aggregatedChartData, summary, records: allPriceData.records }
   }, [allPriceData, selectedItem])
 
   // Handlers
