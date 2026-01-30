@@ -41,6 +41,31 @@ interface PriceDataResponse {
   results: Array<Record<string, string>>
 }
 
+// Track the latest published_date across all fetched data
+let latestPublishedDate: Date | null = null
+
+function trackPublishedDate(publishedDateStr: string | undefined): void {
+  if (!publishedDateStr) return
+  // USDA format: "MM/DD/YYYY HH:MM:SS"
+  const [datePart, timePart] = publishedDateStr.split(' ')
+  if (!datePart || !timePart) return
+  const [month, day, year] = datePart.split('/')
+  const [hour, minute, second] = timePart.split(':')
+  const timestamp = new Date(
+    parseInt(year),
+    parseInt(month) - 1,
+    parseInt(day),
+    parseInt(hour),
+    parseInt(minute),
+    parseInt(second)
+  )
+  // Add 5 hours to convert ET to UTC
+  const utcTimestamp = new Date(timestamp.getTime() + 5 * 60 * 60 * 1000)
+  if (!latestPublishedDate || utcTimestamp > latestPublishedDate) {
+    latestPublishedDate = utcTimestamp
+  }
+}
+
 interface PriceRecord {
   report_date: string
   item_description: string
@@ -55,6 +80,7 @@ interface DataManifest {
   generatedAt: string
   dataStartDate: string
   dataEndDate: string
+  latestPublishedDate: string // ISO timestamp of latest USDA published_date
   reports: Array<{
     slug_id: number
     slug_name: string
@@ -124,15 +150,19 @@ async function fetchPriceData(
   const response = await fetchJson<PriceDataResponse>(url)
   const data = response.results || []
 
-  return data.map((item) => ({
-    report_date: item.report_date,
-    item_description: item.item_description || '',
-    number_trades: parseNumericValue(item.number_trades),
-    total_pounds: parseNumericValue(item.total_pounds),
-    price_range_low: parseNumericValue(item.price_range_low),
-    price_range_high: parseNumericValue(item.price_range_high),
-    weighted_average: parseNumericValue(item.weighted_average),
-  }))
+  return data.map((item) => {
+    // Track the latest published_date for the manifest
+    trackPublishedDate(item.published_date)
+    return {
+      report_date: item.report_date,
+      item_description: item.item_description || '',
+      number_trades: parseNumericValue(item.number_trades),
+      total_pounds: parseNumericValue(item.total_pounds),
+      price_range_low: parseNumericValue(item.price_range_low),
+      price_range_high: parseNumericValue(item.price_range_high),
+      weighted_average: parseNumericValue(item.weighted_average),
+    }
+  })
 }
 
 function extractUniqueItems(records: PriceRecord[]): string[] {
@@ -178,6 +208,7 @@ async function main(): Promise<void> {
     generatedAt: new Date().toISOString(),
     dataStartDate: startDate.toISOString().split('T')[0],
     dataEndDate: endDate.toISOString().split('T')[0],
+    latestPublishedDate: '', // Will be set after all data is fetched
     reports: [],
   }
 
@@ -247,6 +278,11 @@ async function main(): Promise<void> {
       sections: sectionNames,
     })
   }
+
+  // Set the latest published date from tracked data
+  manifest.latestPublishedDate = latestPublishedDate
+    ? latestPublishedDate.toISOString()
+    : new Date().toISOString()
 
   // Write manifest
   writeJson(join(OUTPUT_DIR, 'manifest.json'), manifest)

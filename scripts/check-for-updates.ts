@@ -1,26 +1,29 @@
 /**
  * Lightweight script to check if USDA has new data
- * Compares latest report date from API against deployed manifest
+ * Compares latest published_date timestamp from API against deployed manifest
  * Exits with code 0 if new data available, 1 if no updates
  */
 
 const API_BASE = 'https://mpr.datamart.ams.usda.gov/services/v1.1'
 const DEPLOYED_MANIFEST_URL = 'https://meatster.kubishi.com/data/manifest.json'
 
-// Primary report to check (National Daily Boxed Beef Cutout)
-const CHECK_REPORT_ID = 2453
-const CHECK_SECTION = 'Choice Cuts'
+// Daily reports to check (PM reports publish around 2:30 PM ET)
+const DAILY_REPORTS = [
+  { id: 2453, section: 'Summary', name: 'National Daily Boxed Beef Cutout (PM)' },
+  { id: 2459, section: 'Summary', name: 'National Daily Boxed Beef Cutout (Comprehensive)' },
+]
 
 interface Manifest {
   generatedAt: string
   dataEndDate: string
+  latestPublishedDate?: string // ISO timestamp of latest USDA published_date
 }
 
 interface PriceDataResponse {
-  results: Array<{ report_date: string }>
+  results: Array<{ report_date: string; published_date: string }>
 }
 
-async function getDeployedDataDate(): Promise<string | null> {
+async function getDeployedPublishedDate(): Promise<string | null> {
   try {
     const response = await fetch(DEPLOYED_MANIFEST_URL)
     if (!response.ok) {
@@ -28,78 +31,108 @@ async function getDeployedDataDate(): Promise<string | null> {
       return null
     }
     const manifest: Manifest = await response.json()
-    return manifest.dataEndDate
+    // Prefer latestPublishedDate if available, fall back to generatedAt
+    return manifest.latestPublishedDate || manifest.generatedAt
   } catch (error) {
     console.log('Error fetching deployed manifest:', error)
     return null
   }
 }
 
-async function getLatestUSDADate(): Promise<string | null> {
-  try {
-    // Fetch recent data (last 7 days) to find the latest report date
-    const endDate = new Date()
-    const startDate = new Date()
-    startDate.setDate(startDate.getDate() - 7)
+function parseUSDATimestamp(timestamp: string): Date {
+  // USDA format: "MM/DD/YYYY HH:MM:SS" (assumed ET timezone)
+  const [datePart, timePart] = timestamp.split(' ')
+  const [month, day, year] = datePart.split('/')
+  const [hour, minute, second] = timePart.split(':')
+  // Create date assuming ET (UTC-5), convert to UTC for comparison
+  const etDate = new Date(
+    parseInt(year),
+    parseInt(month) - 1,
+    parseInt(day),
+    parseInt(hour),
+    parseInt(minute),
+    parseInt(second)
+  )
+  // Add 5 hours to convert ET to UTC (simplified, doesn't handle DST)
+  return new Date(etDate.getTime() + 5 * 60 * 60 * 1000)
+}
 
-    const formatDate = (d: Date) => {
-      const month = String(d.getMonth() + 1).padStart(2, '0')
-      const day = String(d.getDate()).padStart(2, '0')
-      return `${month}/${day}/${d.getFullYear()}`
-    }
-
-    const url = `${API_BASE}/reports/${CHECK_REPORT_ID}/${encodeURIComponent(CHECK_SECTION)}?q=report_date=${formatDate(startDate)}:${formatDate(endDate)}`
-    console.log(`Checking USDA API: ${url}`)
-
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`)
-    }
-
-    const data: PriceDataResponse = await response.json()
-    const results = data.results || []
-
-    if (results.length === 0) {
-      console.log('No recent data from USDA')
-      return null
-    }
-
-    // Find the latest date (format: MM/DD/YYYY)
-    const dates = results.map((r) => {
-      const [month, day, year] = r.report_date.split('/')
-      return `${year}-${month}-${day}` // Convert to YYYY-MM-DD for comparison
-    })
-    dates.sort()
-    return dates[dates.length - 1]
-  } catch (error) {
-    console.log('Error fetching USDA data:', error)
-    return null
+async function getLatestUSDAPublishedDate(): Promise<string | null> {
+  const formatDate = (d: Date) => {
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${month}/${day}/${d.getFullYear()}`
   }
+
+  const endDate = new Date()
+  const startDate = new Date()
+  startDate.setDate(startDate.getDate() - 7)
+
+  let latestTimestamp: Date | null = null
+
+  for (const report of DAILY_REPORTS) {
+    try {
+      const url = `${API_BASE}/reports/${report.id}/${encodeURIComponent(report.section)}?q=report_date=${formatDate(startDate)}:${formatDate(endDate)}`
+      console.log(`Checking ${report.name}: ${url}`)
+
+      const response = await fetch(url)
+      if (!response.ok) {
+        console.log(`  HTTP ${response.status} - skipping`)
+        continue
+      }
+
+      const data: PriceDataResponse = await response.json()
+      const results = data.results || []
+
+      if (results.length === 0) {
+        console.log('  No recent data')
+        continue
+      }
+
+      // Find the latest published_date in this report
+      for (const r of results) {
+        if (r.published_date) {
+          const timestamp = parseUSDATimestamp(r.published_date)
+          if (!latestTimestamp || timestamp > latestTimestamp) {
+            latestTimestamp = timestamp
+            console.log(`  Latest: ${r.published_date}`)
+          }
+        }
+      }
+    } catch (error) {
+      console.log(`  Error: ${error}`)
+    }
+  }
+
+  return latestTimestamp ? latestTimestamp.toISOString() : null
 }
 
 async function main(): Promise<void> {
   console.log('Checking for USDA data updates...\n')
 
-  const [deployedDate, latestDate] = await Promise.all([
-    getDeployedDataDate(),
-    getLatestUSDADate(),
+  const [deployedTimestamp, latestTimestamp] = await Promise.all([
+    getDeployedPublishedDate(),
+    getLatestUSDAPublishedDate(),
   ])
 
-  console.log(`\nDeployed data date: ${deployedDate || 'unknown'}`)
-  console.log(`Latest USDA date:   ${latestDate || 'unknown'}`)
+  console.log(`\nDeployed published: ${deployedTimestamp || 'unknown'}`)
+  console.log(`Latest USDA:        ${latestTimestamp || 'unknown'}`)
 
-  if (!latestDate) {
-    console.log('\nCould not determine latest USDA date. Skipping build.')
+  if (!latestTimestamp) {
+    console.log('\nCould not determine latest USDA timestamp. Skipping build.')
     process.exit(1)
   }
 
-  if (!deployedDate) {
+  if (!deployedTimestamp) {
     console.log('\nNo deployed manifest found. New data available!')
     process.exit(0)
   }
 
-  if (latestDate > deployedDate) {
-    console.log(`\nNew data available! (${deployedDate} -> ${latestDate})`)
+  const deployedTime = new Date(deployedTimestamp).getTime()
+  const latestTime = new Date(latestTimestamp).getTime()
+
+  if (latestTime > deployedTime) {
+    console.log(`\nNew data available! Triggering build.`)
     process.exit(0)
   } else {
     console.log('\nNo new data. Skipping build.')

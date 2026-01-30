@@ -12,11 +12,7 @@ npm run preview  # Preview production build
 npm run deploy   # Build + deploy to Cloudflare Pages
 ```
 
-For the scheduled worker:
-```bash
-cd workers
-wrangler deploy  # Deploy the data-check scheduler
-```
+Data updates are handled by GitHub Actions (`.github/workflows/update-data.yml`).
 
 ## Architecture
 
@@ -28,11 +24,12 @@ wrangler deploy  # Deploy the data-check scheduler
 
 ## Key Files
 
-- `src/services/api.ts` - USDA MPR DataMart API integration
+- `src/services/staticApi.ts` - Loads pre-generated JSON data from `/data/`
 - `src/hooks/useApi.ts` - React Query hooks for data fetching
 - `src/components/PriceChart.tsx` - Main chart component
 - `src/components/FilterPanel.tsx` - Report/section/item filters
-- `workers/scheduled-checker.ts` - Cron job that checks for new USDA data every 2 hours
+- `scripts/generate-data.ts` - Build-time script that fetches USDA data and writes static JSON
+- `scripts/check-for-updates.ts` - Compares USDA published timestamps to detect new data
 
 ## Code Style
 
@@ -47,8 +44,9 @@ wrangler deploy  # Deploy the data-check scheduler
 USDA Market Price Reporting API: `https://mpr.datamart.ams.usda.gov/services/v1.1`
 
 Key reports:
-- `2453` = National Daily Boxed Beef Cutout (publishes 2x daily, used for update checking)
+- `2453` = National Daily Boxed Beef Cutout (PM) - publishes ~2:30 PM ET weekdays, used for update checking
 - `2457` = National Weekly Boxed Beef Cuts for Branded Product (app default)
+- `2459` = National Daily Boxed Beef Cutout (Comprehensive) - also checked for updates
 
 ## Legacy Files
 
