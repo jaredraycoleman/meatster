@@ -1,4 +1,4 @@
-# Meatster
+# Kaani
 
 USDA beef price analytics dashboard. Modernized from Python/Dash to TypeScript/React.
 
@@ -44,8 +44,8 @@ Data updates are handled by GitHub Actions (`.github/workflows/update-data.yml`)
 USDA Market Price Reporting API: `https://mpr.datamart.ams.usda.gov/services/v1.1`
 
 Key reports:
-- `2453` = National Daily Boxed Beef Cutout (PM) - publishes ~2:30 PM ET weekdays, used for update checking
-- `2457` = National Weekly Boxed Beef Cuts for Branded Product (app default)
+- `2453` = National Daily Boxed Beef Cutout (PM) - publishes ~2:30 PM ET weekdays (app default, used for update checking)
+- `2457` = National Weekly Boxed Beef Cuts for Branded Product
 - `2459` = National Daily Boxed Beef Cutout (Comprehensive) - also checked for updates
 
 ## Legacy Files

@@ -8,7 +8,7 @@ interface Favorite {
   createdAt: number
 }
 
-const STORAGE_KEY = 'meatster-favorites'
+const STORAGE_KEY = 'kaani-favorites'
 
 function loadFavorites(): Favorite[] {
   try {

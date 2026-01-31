@@ -1,4 +1,3 @@
-import { Beef } from 'lucide-react'
 import { Favorites } from './Favorites'
 
 interface HeaderProps {
@@ -12,9 +11,8 @@ export function Header({ dataAsOf, currentViewName }: HeaderProps) {
       <div className="px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Beef className="w-8 h-8" />
-            <div>
-              <h1 className="text-2xl font-bold">Meatster</h1>
+                        <div>
+              <h1 className="text-2xl font-bold">Kaani</h1>
               <p className="text-sm text-blue-200">
                 USDA Beef Price Analytics
               </p>

@@ -5,7 +5,7 @@
  */
 
 const API_BASE = 'https://mpr.datamart.ams.usda.gov/services/v1.1'
-const DEPLOYED_MANIFEST_URL = 'https://meatster.kubishi.com/data/manifest.json'
+const DEPLOYED_MANIFEST_URL = 'https://kaani.kubishi.com/data/manifest.json'
 
 // Daily reports to check (PM reports publish around 2:30 PM ET)
 const DAILY_REPORTS = [

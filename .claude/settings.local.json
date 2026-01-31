@@ -8,7 +8,11 @@
       "Bash(npm run check-updates:*)",
       "Bash(git stash:*)",
       "Bash(git pull:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(npm run build:skip-data:*)",
+      "Bash(winget search:*)",
+      "Bash(npm install:*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }

@@ -1,4 +1,4 @@
-# Meatster
+# Kaani
 
 USDA Beef Price Analytics Dashboard.
 
@@ -9,7 +9,7 @@ USDA Beef Price Analytics Dashboard.
 - **Charts**: Recharts
 - **Data Fetching**: TanStack React Query
 - **Deployment**: Cloudflare Pages
-- **Scheduled Jobs**: Cloudflare Workers (checks for new data every 2 hours)
+- **Scheduled Jobs**: GitHub Actions (checks for new USDA data during business hours)
 
 ## Development
 
@@ -35,29 +35,13 @@ npm run preview
 2. Set build command: `npm run build`
 3. Set output directory: `dist`
 
-### Scheduled Worker (Data Update Checker)
+### Automated Data Updates
 
-The scheduled worker checks every 2 hours if new USDA data is available and triggers a rebuild if found.
-
-```bash
-cd workers
-
-# Create KV namespace
-wrangler kv:namespace create MEATSTER_KV
-
-# Update wrangler.toml with the KV namespace ID
-
-# Set secrets
-wrangler secret put CF_API_TOKEN
-wrangler secret put CF_ACCOUNT_ID
-
-# Deploy the worker
-wrangler deploy
-```
+GitHub Actions workflow (`.github/workflows/update-data.yml`) checks every 30 minutes during USDA business hours for new data and triggers a rebuild if found.
 
 Required secrets:
-- `CF_API_TOKEN`: Cloudflare API token with Pages edit permissions
-- `CF_ACCOUNT_ID`: Your Cloudflare account ID
+- `CLOUDFLARE_API_TOKEN`: Cloudflare API token with Pages edit permissions
+- `CLOUDFLARE_ACCOUNT_ID`: Your Cloudflare account ID
 
 ## Data Source
 

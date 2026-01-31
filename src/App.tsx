@@ -52,8 +52,8 @@ const DEFAULT_METRICS: MetricConfig[] = [
 ]
 
 // Default selections
-const DEFAULT_REPORT = '2457'
-const DEFAULT_SECTION = 'Upper 2-3 Choice Items'
+const DEFAULT_REPORT = '2453'
+const DEFAULT_SECTION = 'Choice Cuts'
 
 function getInitialStateFromURL() {
   const params = new URLSearchParams(window.location.search)
