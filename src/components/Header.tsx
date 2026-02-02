@@ -1,3 +1,4 @@
+import { Beef } from 'lucide-react'
 import { Favorites } from './Favorites'
 
 interface HeaderProps {
