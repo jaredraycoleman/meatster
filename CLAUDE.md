@@ -1,4 +1,4 @@
-# Meatster
+# Kaani
 
 USDA beef price analytics dashboard. Modernized from Python/Dash to TypeScript/React.
 
