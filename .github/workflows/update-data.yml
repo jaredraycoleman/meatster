@@ -41,7 +41,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=kaani
+          command: pages deploy dist --project-name=meatster
 
       - name: Log skip reason
         if: steps.check.outcome != 'success'

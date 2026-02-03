@@ -12,7 +12,8 @@
       "Bash(npm run build:skip-data:*)",
       "Bash(winget search:*)",
       "Bash(npm install:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "WebFetch(domain:www.githubstatus.com)"
     ]
   }
 }
