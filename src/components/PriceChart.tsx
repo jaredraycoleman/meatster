@@ -24,6 +24,7 @@ interface PriceChartProps {
   onToggleMetric: (key: string) => void
   viewStartDate: Date
   viewEndDate: Date
+  isAggregated?: boolean
 }
 
 interface MergedDataPoint {
@@ -42,7 +43,7 @@ interface MergedDataPoint {
   pounds_prev?: number
 }
 
-export function PriceChart({ data, metrics, onToggleMetric, viewStartDate, viewEndDate }: PriceChartProps) {
+export function PriceChart({ data, metrics, onToggleMetric, viewStartDate, viewEndDate, isAggregated = false }: PriceChartProps) {
   const [comparisonPeriod, setComparisonPeriod] = useState<ComparisonPeriod>('1y')
 
   const enabledMetrics = metrics.filter(m => m.enabled)
@@ -176,15 +177,20 @@ export function PriceChart({ data, metrics, onToggleMetric, viewStartDate, viewE
         </div>
       </div>
 
-      <div className="flex items-center gap-4 mb-2 text-xs text-gray-500">
-        <div className="flex items-center gap-1">
-          <div className="w-6 h-0.5 bg-gray-800" />
-          <span>Current</span>
+      <div className="flex items-center justify-between mb-2 text-xs text-gray-500">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
+            <div className="w-6 h-0.5 bg-gray-800" />
+            <span>Current</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-6 h-0.5" style={{ borderTop: '2px dashed #9ca3af' }} />
+            <span>{comparisonLabel}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <div className="w-6 h-0.5" style={{ borderTop: '2px dashed #9ca3af' }} />
-          <span>{comparisonLabel}</span>
-        </div>
+        {isAggregated && (
+          <span className="text-amber-600 font-medium">Averaged across all items</span>
+        )}
       </div>
 
       <div className="h-[400px]">

@@ -24,7 +24,6 @@ export interface PriceSummary {
   median: number
   min: number
   max: number
-  mode: number
   total: number
 }
 

@@ -5,10 +5,11 @@ import type { PriceSummary } from '@/types'
 interface SummaryStatsProps {
   summary: PriceSummary | null
   isLoading: boolean
+  isAggregated?: boolean
   onAnalyze?: () => void
 }
 
-export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProps) {
+export function SummaryStats({ summary, isLoading, isAggregated = false, onAnalyze }: SummaryStatsProps) {
   const [isCollapsed, setIsCollapsed] = useState(true) // Collapsed by default on mobile
 
   if (isLoading) {
@@ -17,8 +18,8 @@ export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProp
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Summary Statistics</h3>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-16 mb-2"></div>
               <div className="h-6 bg-gray-200 rounded w-20"></div>
@@ -33,41 +34,36 @@ export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProp
     return null
   }
 
+  // When aggregated, stats are based on averages across all items
+  const priceLabel = isAggregated ? 'Avg' : 'Price'
   const stats = [
     {
-      label: 'Mean Price',
+      label: `Mean ${priceLabel}`,
       value: `$${summary.mean.toFixed(2)}`,
       icon: DollarSign,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
     },
     {
-      label: 'Median Price',
+      label: `Median ${priceLabel}`,
       value: `$${summary.median.toFixed(2)}`,
       icon: DollarSign,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
     },
     {
-      label: 'Min Price',
+      label: `Min ${priceLabel}`,
       value: `$${summary.min.toFixed(2)}`,
       icon: TrendingDown,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
     },
     {
-      label: 'Max Price',
+      label: `Max ${priceLabel}`,
       value: `$${summary.max.toFixed(2)}`,
       icon: TrendingUp,
       color: 'text-red-600',
       bgColor: 'bg-red-50',
-    },
-    {
-      label: 'Mode Price',
-      value: `$${summary.mode.toFixed(2)}`,
-      icon: DollarSign,
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50',
     },
     {
       label: 'Total Volume',
@@ -99,7 +95,12 @@ export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProp
 
       {/* Desktop header */}
       <div className="hidden sm:flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Summary Statistics</h3>
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">Summary Statistics</h3>
+          {isAggregated && (
+            <p className="text-xs text-gray-500">Averaged across all items</p>
+          )}
+        </div>
         {onAnalyze && (
           <button
             onClick={onAnalyze}
@@ -113,7 +114,7 @@ export function SummaryStats({ summary, isLoading, onAnalyze }: SummaryStatsProp
 
       {/* Stats grid - hidden on mobile when collapsed */}
       <div className={`${isCollapsed ? 'hidden' : 'mt-4'} sm:block`}>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {stats.map(stat => (
             <div
               key={stat.label}

@@ -13,7 +13,8 @@
       "Bash(winget search:*)",
       "Bash(npm install:*)",
       "Bash(npx tsx:*)",
-      "WebFetch(domain:www.githubstatus.com)"
+      "WebFetch(domain:www.githubstatus.com)",
+      "Bash(npm run build:*)"
     ]
   }
 }

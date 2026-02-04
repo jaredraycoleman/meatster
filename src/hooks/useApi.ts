@@ -84,7 +84,6 @@ export function usePriceData(
         median: calculateMedian(prices),
         min: prices.length > 0 ? Math.min(...prices) : 0,
         max: prices.length > 0 ? Math.max(...prices) : 0,
-        mode: calculateMode(prices),
         total: data.reduce((sum, r) => sum + r.total_pounds, 0),
       }
 
@@ -102,22 +101,4 @@ function calculateMedian(values: number[]): number {
   return sorted.length % 2 !== 0
     ? sorted[mid]
     : (sorted[mid - 1] + sorted[mid]) / 2
-}
-
-function calculateMode(values: number[]): number {
-  if (values.length === 0) return 0
-  const frequency: Record<string, number> = {}
-  let maxFreq = 0
-  let mode = values[0]
-
-  values.forEach(value => {
-    const key = value.toFixed(2)
-    frequency[key] = (frequency[key] || 0) + 1
-    if (frequency[key] > maxFreq) {
-      maxFreq = frequency[key]
-      mode = value
-    }
-  })
-
-  return mode
 }

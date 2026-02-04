@@ -27,21 +27,6 @@ function calculateMedian(values: number[]): number {
     : (sorted[mid - 1] + sorted[mid]) / 2
 }
 
-function calculateMode(values: number[]): number {
-  if (values.length === 0) return 0
-  const frequency: Record<string, number> = {}
-  let maxFreq = 0
-  let mode = values[0]
-  values.forEach(value => {
-    const key = value.toFixed(2)
-    frequency[key] = (frequency[key] || 0) + 1
-    if (frequency[key] > maxFreq) {
-      maxFreq = frequency[key]
-      mode = value
-    }
-  })
-  return mode
-}
 
 const DEFAULT_METRICS: MetricConfig[] = [
   { key: 'priceLow', label: 'Price Low', color: '#22c55e', yAxisId: 'price', enabled: true },
@@ -174,10 +159,16 @@ export default function App() {
     null // Don't filter by item in the query - do it client-side
   )
 
-  // Filter data client-side by selected item (instant, no refetch)
+  // Filter data client-side by selected item and date range (instant, no refetch)
   // When no item selected, aggregate to daily averages
   const priceData = useMemo(() => {
     if (!allPriceData) return null
+
+    // Helper to check if a date string is within the view range
+    const isInViewRange = (dateStr: string) => {
+      const date = parse(dateStr, 'MM/dd/yyyy', new Date())
+      return date >= startDate && date <= endDate
+    }
 
     if (selectedItem) {
       // Single item selected - filter to just that item
@@ -185,20 +176,21 @@ export default function App() {
         r => r.item_description === selectedItem
       )
       const filteredChartData = allPriceData.chartData.filter(
-        (_, idx) => allPriceData.records[idx]?.item_description === selectedItem
+        point => point.itemDescription === selectedItem
       )
 
-      const prices = filteredRecords.map(r => r.weighted_average).filter(p => p > 0)
+      // Summary uses only records within the view date range
+      const viewRecords = filteredRecords.filter(r => isInViewRange(r.report_date))
+      const prices = viewRecords.map(r => r.weighted_average).filter(p => p > 0)
       const summary = {
         mean: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
         median: calculateMedian(prices),
         min: prices.length > 0 ? Math.min(...prices) : 0,
         max: prices.length > 0 ? Math.max(...prices) : 0,
-        mode: calculateMode(prices),
-        total: filteredRecords.reduce((sum, r) => sum + r.total_pounds, 0),
+        total: viewRecords.reduce((sum, r) => sum + r.total_pounds, 0),
       }
 
-      return { chartData: filteredChartData, summary, records: filteredRecords }
+      return { chartData: filteredChartData, summary, records: filteredRecords, isAggregated: false }
     }
 
     // All items - aggregate to daily averages
@@ -233,19 +225,19 @@ export default function App() {
       return dateA.getTime() - dateB.getTime()
     })
 
-    // Summary uses all individual prices
-    const prices = allPriceData.records.map(r => r.weighted_average).filter(p => p > 0)
+    // Filter aggregated data to view range for summary calculation
+    const viewAggregatedData = aggregatedChartData.filter(d => isInViewRange(d.date))
+    const prices = viewAggregatedData.map(d => d.weightedAverage).filter(p => p > 0)
     const summary = {
       mean: prices.length > 0 ? prices.reduce((a, b) => a + b, 0) / prices.length : 0,
       median: calculateMedian(prices),
       min: prices.length > 0 ? Math.min(...prices) : 0,
       max: prices.length > 0 ? Math.max(...prices) : 0,
-      mode: calculateMode(prices),
-      total: allPriceData.records.reduce((sum, r) => sum + r.total_pounds, 0),
+      total: allPriceData.records.filter(r => isInViewRange(r.report_date)).reduce((sum, r) => sum + r.total_pounds, 0),
     }
 
-    return { chartData: aggregatedChartData, summary, records: allPriceData.records }
-  }, [allPriceData, selectedItem])
+    return { chartData: aggregatedChartData, summary, records: allPriceData.records, isAggregated: true }
+  }, [allPriceData, selectedItem, startDate, endDate])
 
   // Handlers
   const handleReportChange = useCallback((reportId: string) => {
@@ -330,6 +322,7 @@ export default function App() {
         <SummaryStats
           summary={priceData?.summary ?? null}
           isLoading={priceLoading}
+          isAggregated={priceData?.isAggregated ?? false}
           onAnalyze={priceData?.chartData && priceData.chartData.length > 0 ? () => setShowAnalysis(true) : undefined}
         />
 
@@ -392,6 +385,7 @@ export default function App() {
                 onToggleMetric={handleToggleMetric}
                 viewStartDate={startDate}
                 viewEndDate={endDate}
+                isAggregated={priceData.isAggregated}
               />
             </div>
 
@@ -404,6 +398,7 @@ export default function App() {
                   onToggleMetric={handleToggleMetric}
                   viewStartDate={startDate}
                   viewEndDate={endDate}
+                  isAggregated={priceData.isAggregated}
                 />
               ) : (
                 <div className="h-[600px]">
